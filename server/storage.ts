@@ -826,14 +826,18 @@ Remember, difficult conversations are opportunities to build stronger relationsh
 
   async createVideoAnalysis(insertAnalysis: InsertVideoAnalysis): Promise<VideoAnalysis> {
     const id = this.currentId++;
+    const feedbackArray: string[] = Array.isArray(insertAnalysis.feedback) 
+      ? (insertAnalysis.feedback as string[])
+      : [
+          "Good eye contact maintained throughout",
+          "Consider using more hand gestures for emphasis"
+        ];
+    
     const analysis: VideoAnalysis = { 
       ...insertAnalysis, 
       id, 
       userId: insertAnalysis.userId || null,
-      feedback: Array.isArray(insertAnalysis.feedback) ? insertAnalysis.feedback : [
-        "Good eye contact maintained throughout",
-        "Consider using more hand gestures for emphasis"
-      ],
+      feedback: feedbackArray,
       createdAt: new Date() 
     };
     this.videoAnalyses.set(id, analysis);
@@ -967,17 +971,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createVideoAnalysis(insertAnalysis: InsertVideoAnalysis): Promise<VideoAnalysis> {
+    const feedbackArray: string[] = Array.isArray(insertAnalysis.feedback) 
+      ? (insertAnalysis.feedback as string[])
+      : [];
+    
     const [analysis] = await db
       .insert(videoAnalyses)
       .values({
+        userId: insertAnalysis.userId || null,
         scenario: insertAnalysis.scenario,
         overallScore: insertAnalysis.overallScore,
         eyeContactScore: insertAnalysis.eyeContactScore,
         facialExpressionScore: insertAnalysis.facialExpressionScore,
         gestureScore: insertAnalysis.gestureScore,
         postureScore: insertAnalysis.postureScore,
-        feedback: Array.isArray(insertAnalysis.feedback) ? insertAnalysis.feedback : [],
-        userId: insertAnalysis.userId || null,
+        feedback: feedbackArray,
         createdAt: new Date()
       })
       .returning();

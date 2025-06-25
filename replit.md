@@ -22,14 +22,16 @@ Tawasl is a comprehensive communication skills training platform that combines A
 - **Session Management**: Express sessions with PostgreSQL store
 
 ### Database Design
-The system uses PostgreSQL with the following main entities:
+The system uses PostgreSQL (Neon-backed) with Drizzle ORM for type-safe operations:
 - **Users**: Authentication and user management
-- **Articles**: Educational content with categories and metadata
-- **Test Categories**: Different types of communication assessments
-- **Test Questions**: Multiple choice questions with explanations
-- **Test Results**: User performance tracking with detailed feedback
-- **FAQs**: Frequently asked questions with categorization
-- **Video Analyses**: AI-powered video assessment results
+- **Articles**: Educational content with full rich-text content, categories and metadata
+- **Test Categories**: Different types of communication assessments (Verbal, Body Language, Active Listening)
+- **Test Questions**: Multiple choice questions with detailed explanations and correct answers
+- **Test Results**: User performance tracking with detailed feedback and scoring
+- **FAQs**: Frequently asked questions with comprehensive answers and categorization
+- **Video Analyses**: AI-powered video assessment results with detailed scoring metrics
+
+Database is automatically seeded with sample content on startup including 5 comprehensive articles, 3 test categories with 15 real questions, and 8 detailed FAQ entries.
 
 ## Key Components
 
@@ -117,6 +119,12 @@ The system uses PostgreSQL with the following main entities:
 ```
 Changelog:
 - June 25, 2025. Initial setup
+- June 25, 2025. Added PostgreSQL database integration
+- June 25, 2025. Enhanced articles with creation modal and full-content reading
+- June 25, 2025. Added 15+ comprehensive test questions across all skill categories
+- June 25, 2025. Improved header design with icons and enhanced navigation
+- June 25, 2025. Added enhanced button styles and hover effects
+- June 25, 2025. Expanded FAQ content with better categorization
 ```
 
 ## User Preferences

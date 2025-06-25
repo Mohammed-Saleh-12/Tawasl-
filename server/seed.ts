@@ -1,68 +1,24 @@
-import { 
-  users, articles, testCategories, testQuestions, testResults, faqs, videoAnalyses,
-  type User, type InsertUser, type Article, type InsertArticle,
-  type TestCategory, type InsertTestCategory, type TestQuestion, type InsertTestQuestion,
-  type TestResult, type InsertTestResult, type FAQ, type InsertFAQ,
-  type VideoAnalysis, type InsertVideoAnalysis
-} from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { 
+  articles, testCategories, testQuestions, faqs,
+  type Article, type TestCategory, type TestQuestion, type FAQ
+} from "@shared/schema";
 
-export interface IStorage {
-  // User methods
-  getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-  
-  // Article methods
-  getArticles(search?: string, category?: string): Promise<Article[]>;
-  getArticle(id: number): Promise<Article | undefined>;
-  createArticle(article: InsertArticle): Promise<Article>;
-  
-  // Test methods
-  getTestCategories(): Promise<TestCategory[]>;
-  getTestCategory(id: number): Promise<TestCategory | undefined>;
-  getTestQuestions(categoryId: number): Promise<TestQuestion[]>;
-  createTestResult(result: InsertTestResult): Promise<TestResult>;
-  getUserTestResults(userId?: number): Promise<TestResult[]>;
-  
-  // FAQ methods
-  getFAQs(search?: string, category?: string): Promise<FAQ[]>;
-  createFAQ(faq: InsertFAQ): Promise<FAQ>;
-  
-  // Video analysis methods
-  createVideoAnalysis(analysis: InsertVideoAnalysis): Promise<VideoAnalysis>;
-  getUserVideoAnalyses(userId?: number): Promise<VideoAnalysis[]>;
-}
+export async function seedDatabase() {
+  console.log("Starting database seeding...");
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private articles: Map<number, Article>;
-  private testCategories: Map<number, TestCategory>;
-  private testQuestions: Map<number, TestQuestion>;
-  private testResults: Map<number, TestResult>;
-  private faqs: Map<number, FAQ>;
-  private videoAnalyses: Map<number, VideoAnalysis>;
-  private currentId: number;
+  try {
+    // Check if data already exists
+    const existingArticles = await db.select().from(articles).limit(1);
+    if (existingArticles.length > 0) {
+      console.log("Database already seeded, skipping...");
+      return;
+    }
 
-  constructor() {
-    this.users = new Map();
-    this.articles = new Map();
-    this.testCategories = new Map();
-    this.testQuestions = new Map();
-    this.testResults = new Map();
-    this.faqs = new Map();
-    this.videoAnalyses = new Map();
-    this.currentId = 1;
-    
-    this.seedData();
-  }
-
-  private seedData() {
-    // Seed articles with comprehensive content
-    const sampleArticles: Article[] = [
+    // Seed articles
+    console.log("Seeding articles...");
+    const sampleArticles: Omit<Article, 'id'>[] = [
       {
-        id: this.currentId++,
         title: "The Art of Active Listening: 10 Techniques That Transform Conversations",
         excerpt: "Master the fundamental skill of active listening with proven techniques that enhance understanding and build stronger relationships.",
         content: `Active listening is more than just hearing words – it's about fully engaging with the speaker to understand their message, emotions, and underlying needs. Research shows that effective listening can improve relationships by up to 40% and increase workplace productivity by 25%.
@@ -102,7 +58,6 @@ Remember, active listening is a skill that improves with practice. Start with on
         imageUrl: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=600"
       },
       {
-        id: this.currentId++,
         title: "Mastering Body Language: How to Project Confidence in Every Interaction",
         excerpt: "Learn how to use body language effectively to communicate confidence, build trust, and enhance your professional presence.",
         content: `Body language accounts for 55% of all communication, making it one of the most powerful tools in your communication toolkit. Understanding and mastering non-verbal communication can dramatically improve your personal and professional relationships.
@@ -160,7 +115,6 @@ Remember, authentic body language is more important than perfect technique. Focu
         imageUrl: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=600"
       },
       {
-        id: this.currentId++,
         title: "Virtual Communication Mastery: Excelling in Remote Work Environments",
         excerpt: "Navigate the challenges of virtual communication with strategies for video calls, remote collaboration, and digital presence.",
         content: `The shift to remote work has fundamentally changed how we communicate professionally. Virtual communication requires adapting traditional communication skills to digital platforms while maintaining effectiveness and human connection.
@@ -231,7 +185,6 @@ The key to virtual communication success is being more intentional and explicit 
         imageUrl: "https://images.unsplash.com/photo-1600298881974-6be191ceeda1?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=600"
       },
       {
-        id: this.currentId++,
         title: "Presentation Skills: Captivating Your Audience from Start to Finish",
         excerpt: "Transform your presentations with proven techniques for structure, delivery, and audience engagement that leave lasting impact.",
         content: `Effective presentations are crucial for career advancement and business success. Whether you're pitching ideas, training colleagues, or speaking at conferences, mastering presentation skills can set you apart as a leader and expert.
@@ -309,7 +262,6 @@ Remember, great presentations aren't just about sharing information – they're 
         imageUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=600"
       },
       {
-        id: this.currentId++,
         title: "Difficult Conversations: Navigating Conflict with Grace and Effectiveness",
         excerpt: "Learn to handle challenging discussions with confidence, turning potential conflicts into opportunities for growth and understanding.",
         content: `Difficult conversations are unavoidable in both personal and professional life. The ability to navigate these challenging discussions skillfully can strengthen relationships, resolve conflicts, and drive positive change.
@@ -413,14 +365,12 @@ Remember, difficult conversations are opportunities to build stronger relationsh
       }
     ];
 
-    sampleArticles.forEach(article => {
-      this.articles.set(article.id, article);
-    });
+    await db.insert(articles).values(sampleArticles);
 
     // Seed test categories
-    const sampleTestCategories: TestCategory[] = [
+    console.log("Seeding test categories...");
+    const sampleTestCategories: Omit<TestCategory, 'id'>[] = [
       {
-        id: this.currentId++,
         name: "Verbal Communication",
         description: "Test your speaking clarity, tone, and verbal expression skills through various scenarios.",
         duration: 15,
@@ -429,7 +379,6 @@ Remember, difficult conversations are opportunities to build stronger relationsh
         icon: "fas fa-microphone"
       },
       {
-        id: this.currentId++,
         name: "Body Language",
         description: "Assess your understanding of non-verbal cues and body language interpretation.",
         duration: 12,
@@ -438,7 +387,6 @@ Remember, difficult conversations are opportunities to build stronger relationsh
         icon: "fas fa-user-friends"
       },
       {
-        id: this.currentId++,
         name: "Active Listening",
         description: "Evaluate your listening skills and ability to understand and respond appropriately.",
         duration: 10,
@@ -448,16 +396,14 @@ Remember, difficult conversations are opportunities to build stronger relationsh
       }
     ];
 
-    sampleTestCategories.forEach(category => {
-      this.testCategories.set(category.id, category);
-    });
+    const insertedCategories = await db.insert(testCategories).values(sampleTestCategories).returning();
 
-    // Seed test questions with comprehensive sets for each category
-    const sampleQuestions: TestQuestion[] = [
+    // Seed test questions
+    console.log("Seeding test questions...");
+    const sampleQuestions: Omit<TestQuestion, 'id'>[] = [
       // Verbal Communication Questions
       {
-        id: this.currentId++,
-        categoryId: sampleTestCategories[0].id,
+        categoryId: insertedCategories[0].id,
         question: "Which of the following is the most effective way to show active listening during a conversation?",
         options: [
           "Nodding frequently while planning your response",
@@ -469,8 +415,7 @@ Remember, difficult conversations are opportunities to build stronger relationsh
         explanation: "Active listening involves being fully present and engaged, which is best demonstrated through eye contact and clarifying questions."
       },
       {
-        id: this.currentId++,
-        categoryId: sampleTestCategories[0].id,
+        categoryId: insertedCategories[0].id,
         question: "What is the ideal speaking pace for effective verbal communication?",
         options: [
           "As fast as possible to convey more information",
@@ -482,8 +427,7 @@ Remember, difficult conversations are opportunities to build stronger relationsh
         explanation: "A moderate pace with pauses allows listeners to process information and shows confidence."
       },
       {
-        id: this.currentId++,
-        categoryId: sampleTestCategories[0].id,
+        categoryId: insertedCategories[0].id,
         question: "When explaining complex information, which technique is most effective?",
         options: [
           "Use technical jargon to sound professional",
@@ -495,8 +439,7 @@ Remember, difficult conversations are opportunities to build stronger relationsh
         explanation: "Chunking information and using examples helps listeners understand and retain complex concepts."
       },
       {
-        id: this.currentId++,
-        categoryId: sampleTestCategories[0].id,
+        categoryId: insertedCategories[0].id,
         question: "What is the best way to handle interruptions during your speech?",
         options: [
           "Immediately stop and let the other person speak",
@@ -508,8 +451,7 @@ Remember, difficult conversations are opportunities to build stronger relationsh
         explanation: "Polite acknowledgment while maintaining your speaking turn shows respect and assertiveness."
       },
       {
-        id: this.currentId++,
-        categoryId: sampleTestCategories[0].id,
+        categoryId: insertedCategories[0].id,
         question: "Which vocal technique best conveys confidence and authority?",
         options: [
           "Speaking in a higher pitch",
@@ -523,8 +465,7 @@ Remember, difficult conversations are opportunities to build stronger relationsh
 
       // Body Language Questions
       {
-        id: this.currentId++,
-        categoryId: sampleTestCategories[1].id,
+        categoryId: insertedCategories[1].id,
         question: "What does crossed arms typically indicate in body language?",
         options: [
           "Openness and receptivity",
@@ -536,8 +477,7 @@ Remember, difficult conversations are opportunities to build stronger relationsh
         explanation: "Crossed arms often signal a defensive posture or resistance to what's being communicated."
       },
       {
-        id: this.currentId++,
-        categoryId: sampleTestCategories[1].id,
+        categoryId: insertedCategories[1].id,
         question: "What percentage of communication is attributed to body language according to research?",
         options: [
           "25%",
@@ -549,8 +489,7 @@ Remember, difficult conversations are opportunities to build stronger relationsh
         explanation: "Albert Mehrabian's research suggests that 55% of communication is through body language."
       },
       {
-        id: this.currentId++,
-        categoryId: sampleTestCategories[1].id,
+        categoryId: insertedCategories[1].id,
         question: "Which posture best conveys confidence during a presentation?",
         options: [
           "Hands clasped behind back",
@@ -562,8 +501,7 @@ Remember, difficult conversations are opportunities to build stronger relationsh
         explanation: "An open stance with visible hands conveys confidence and trustworthiness."
       },
       {
-        id: this.currentId++,
-        categoryId: sampleTestCategories[1].id,
+        categoryId: insertedCategories[1].id,
         question: "What is the appropriate amount of eye contact during a conversation?",
         options: [
           "100% constant eye contact",
@@ -575,8 +513,7 @@ Remember, difficult conversations are opportunities to build stronger relationsh
         explanation: "Maintaining eye contact 50-70% of the time appears natural and engaged without being intimidating."
       },
       {
-        id: this.currentId++,
-        categoryId: sampleTestCategories[1].id,
+        categoryId: insertedCategories[1].id,
         question: "Which hand gesture should be avoided during professional communication?",
         options: [
           "Open palms when explaining",
@@ -590,8 +527,7 @@ Remember, difficult conversations are opportunities to build stronger relationsh
 
       // Active Listening Questions
       {
-        id: this.currentId++,
-        categoryId: sampleTestCategories[2].id,
+        categoryId: insertedCategories[2].id,
         question: "What is the primary goal of active listening?",
         options: [
           "To prepare your response while the other person speaks",
@@ -603,8 +539,7 @@ Remember, difficult conversations are opportunities to build stronger relationsh
         explanation: "Active listening focuses on complete understanding of both content and emotions being communicated."
       },
       {
-        id: this.currentId++,
-        categoryId: sampleTestCategories[2].id,
+        categoryId: insertedCategories[2].id,
         question: "Which technique best demonstrates active listening?",
         options: [
           "Immediately offering advice",
@@ -616,8 +551,7 @@ Remember, difficult conversations are opportunities to build stronger relationsh
         explanation: "Paraphrasing confirms understanding and shows you're truly listening to the speaker."
       },
       {
-        id: this.currentId++,
-        categoryId: sampleTestCategories[2].id,
+        categoryId: insertedCategories[2].id,
         question: "How should you respond when you don't understand something the speaker said?",
         options: [
           "Pretend you understand and move on",
@@ -629,8 +563,7 @@ Remember, difficult conversations are opportunities to build stronger relationsh
         explanation: "Respectful clarification shows engagement and ensures accurate understanding."
       },
       {
-        id: this.currentId++,
-        categoryId: sampleTestCategories[2].id,
+        categoryId: insertedCategories[2].id,
         question: "What is emotional validation in active listening?",
         options: [
           "Agreeing with everything the speaker says",
@@ -642,8 +575,7 @@ Remember, difficult conversations are opportunities to build stronger relationsh
         explanation: "Emotional validation involves recognizing and accepting the speaker's feelings without judgment."
       },
       {
-        id: this.currentId++,
-        categoryId: sampleTestCategories[2].id,
+        categoryId: insertedCategories[2].id,
         question: "Which is the most effective way to show you're listening non-verbally?",
         options: [
           "Taking extensive notes",
@@ -656,341 +588,58 @@ Remember, difficult conversations are opportunities to build stronger relationsh
       }
     ];
 
-    sampleQuestions.forEach(question => {
-      this.testQuestions.set(question.id, question);
-    });
+    await db.insert(testQuestions).values(sampleQuestions);
 
-    // Seed FAQs with comprehensive questions
-    const sampleFAQs: FAQ[] = [
+    // Seed FAQs
+    console.log("Seeding FAQs...");
+    const sampleFAQs: Omit<FAQ, 'id'>[] = [
       {
-        id: this.currentId++,
         question: "How long does it typically take to see improvement in communication skills?",
         answer: "Most users begin to notice improvements within 2-3 weeks of consistent practice. Significant changes typically occur after 1-2 months of regular engagement with our platform. The key is consistent daily practice, even if just for 10-15 minutes.",
         category: "General"
       },
       {
-        id: this.currentId++,
         question: "What makes your AI analysis more accurate than other platforms?",
         answer: "Our AI uses advanced machine learning models trained on thousands of hours of communication data from professional speakers, coaches, and successful communicators. We continuously update our models based on the latest research in communication psychology and behavioral analysis.",
         category: "Platform"
       },
       {
-        id: this.currentId++,
         question: "Can I practice communication skills if I'm introverted?",
         answer: "Absolutely! Many successful communicators are introverts. Our platform provides a safe, private environment to practice at your own pace. We offer specific techniques tailored for introverts, including energy management and preparation strategies.",
         category: "General"
       },
       {
-        id: this.currentId++,
         question: "How does the video analysis protect my privacy?",
         answer: "Your privacy is our top priority. Videos are processed locally when possible, and any data sent to our servers is encrypted and automatically deleted after analysis. You control all your content and can delete it at any time.",
         category: "Platform"
       },
       {
-        id: this.currentId++,
         question: "What's the difference between verbal and non-verbal communication tests?",
         answer: "Verbal communication tests focus on your word choice, clarity, pace, and vocal variety. Non-verbal tests analyze body language, facial expressions, gestures, and posture. Both are crucial for effective communication.",
         category: "Verbal Communication"
       },
       {
-        id: this.currentId++,
         question: "How accurate is the body language analysis?",
         answer: "Our body language analysis achieves 85-90% accuracy in detecting key indicators like eye contact, posture, and gesture patterns. The system is trained on diverse datasets and continuously improves with usage.",
         category: "Body Language"
       },
       {
-        id: this.currentId++,
         question: "Can I use this platform to prepare for job interviews?",
         answer: "Yes! We have specific modules for interview preparation, including common questions, appropriate body language, and confidence-building techniques. Many users report significant improvement in interview performance.",
         category: "Presentations"
       },
       {
-        id: this.currentId++,
         question: "Is there a mobile app available?",
         answer: "Currently, Tawasl is a web-based platform optimized for all devices. A dedicated mobile app is in development and will be available in early 2024 with additional features for on-the-go practice.",
         category: "Platform Usage"
       }
     ];
 
-    sampleFAQs.forEach(faq => {
-      this.faqs.set(faq.id, faq);
-    });
-  }
+    await db.insert(faqs).values(sampleFAQs);
 
-  async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
-  }
-
-  async getArticles(search?: string, category?: string): Promise<Article[]> {
-    let articles = Array.from(this.articles.values());
-    
-    if (search) {
-      articles = articles.filter(article => 
-        article.title.toLowerCase().includes(search.toLowerCase()) ||
-        article.excerpt.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-    
-    if (category && category !== "All Categories") {
-      articles = articles.filter(article => article.category === category);
-    }
-    
-    return articles.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
-  }
-
-  async getArticle(id: number): Promise<Article | undefined> {
-    return this.articles.get(id);
-  }
-
-  async createArticle(insertArticle: InsertArticle): Promise<Article> {
-    const id = this.currentId++;
-    const article: Article = { 
-      ...insertArticle, 
-      id,
-      imageUrl: insertArticle.imageUrl || null 
-    };
-    this.articles.set(id, article);
-    return article;
-  }
-
-  async getTestCategories(): Promise<TestCategory[]> {
-    return Array.from(this.testCategories.values());
-  }
-
-  async getTestCategory(id: number): Promise<TestCategory | undefined> {
-    return this.testCategories.get(id);
-  }
-
-  async getTestQuestions(categoryId: number): Promise<TestQuestion[]> {
-    return Array.from(this.testQuestions.values()).filter(
-      question => question.categoryId === categoryId
-    );
-  }
-
-  async createTestResult(insertResult: InsertTestResult): Promise<TestResult> {
-    const id = this.currentId++;
-    const result: TestResult = { 
-      ...insertResult, 
-      id, 
-      userId: insertResult.userId || null,
-      feedback: insertResult.feedback || null,
-      completedAt: new Date() 
-    };
-    this.testResults.set(id, result);
-    return result;
-  }
-
-  async getUserTestResults(userId?: number): Promise<TestResult[]> {
-    if (!userId) return [];
-    return Array.from(this.testResults.values())
-      .filter(result => result.userId === userId)
-      .sort((a, b) => b.completedAt.getTime() - a.completedAt.getTime());
-  }
-
-  async getFAQs(search?: string, category?: string): Promise<FAQ[]> {
-    let faqs = Array.from(this.faqs.values());
-    
-    if (search) {
-      faqs = faqs.filter(faq => 
-        faq.question.toLowerCase().includes(search.toLowerCase()) ||
-        faq.answer.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-    
-    if (category && category !== "All Topics") {
-      faqs = faqs.filter(faq => faq.category === category);
-    }
-    
-    return faqs;
-  }
-
-  async createFAQ(insertFAQ: InsertFAQ): Promise<FAQ> {
-    const id = this.currentId++;
-    const faq: FAQ = { ...insertFAQ, id };
-    this.faqs.set(id, faq);
-    return faq;
-  }
-
-  async createVideoAnalysis(insertAnalysis: InsertVideoAnalysis): Promise<VideoAnalysis> {
-    const id = this.currentId++;
-    const analysis: VideoAnalysis = { 
-      ...insertAnalysis, 
-      id, 
-      userId: insertAnalysis.userId || null,
-      feedback: Array.isArray(insertAnalysis.feedback) ? insertAnalysis.feedback : [
-        "Good eye contact maintained throughout",
-        "Consider using more hand gestures for emphasis"
-      ],
-      createdAt: new Date() 
-    };
-    this.videoAnalyses.set(id, analysis);
-    return analysis;
-  }
-
-  async getUserVideoAnalyses(userId?: number): Promise<VideoAnalysis[]> {
-    if (!userId) return [];
-    return Array.from(this.videoAnalyses.values())
-      .filter(analysis => analysis.userId === userId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    console.log("Database seeding completed successfully!");
+  } catch (error) {
+    console.error("Error seeding database:", error);
+    throw error;
   }
 }
-
-export class DatabaseStorage implements IStorage {
-  async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user || undefined;
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user || undefined;
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(insertUser)
-      .returning();
-    return user;
-  }
-
-  async getArticles(search?: string, category?: string): Promise<Article[]> {
-    let query = db.select().from(articles);
-    
-    // For now, get all articles and filter in memory
-    // In a production app, you'd use SQL WHERE clauses
-    const allArticles = await query;
-    
-    let filteredArticles = allArticles;
-    
-    if (search) {
-      filteredArticles = filteredArticles.filter(article => 
-        article.title.toLowerCase().includes(search.toLowerCase()) ||
-        article.excerpt.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-    
-    if (category && category !== "All Categories") {
-      filteredArticles = filteredArticles.filter(article => article.category === category);
-    }
-    
-    return filteredArticles.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
-  }
-
-  async getArticle(id: number): Promise<Article | undefined> {
-    const [article] = await db.select().from(articles).where(eq(articles.id, id));
-    return article || undefined;
-  }
-
-  async createArticle(insertArticle: InsertArticle): Promise<Article> {
-    const [article] = await db
-      .insert(articles)
-      .values({
-        ...insertArticle,
-        imageUrl: insertArticle.imageUrl || null
-      })
-      .returning();
-    return article;
-  }
-
-  async getTestCategories(): Promise<TestCategory[]> {
-    return await db.select().from(testCategories);
-  }
-
-  async getTestCategory(id: number): Promise<TestCategory | undefined> {
-    const [category] = await db.select().from(testCategories).where(eq(testCategories.id, id));
-    return category || undefined;
-  }
-
-  async getTestQuestions(categoryId: number): Promise<TestQuestion[]> {
-    return await db.select().from(testQuestions).where(eq(testQuestions.categoryId, categoryId));
-  }
-
-  async createTestResult(insertResult: InsertTestResult): Promise<TestResult> {
-    const [result] = await db
-      .insert(testResults)
-      .values({
-        ...insertResult,
-        userId: insertResult.userId || null,
-        feedback: insertResult.feedback || null,
-        completedAt: new Date()
-      })
-      .returning();
-    return result;
-  }
-
-  async getUserTestResults(userId?: number): Promise<TestResult[]> {
-    if (!userId) return [];
-    
-    const results = await db.select().from(testResults).where(eq(testResults.userId, userId));
-    return results.sort((a, b) => b.completedAt.getTime() - a.completedAt.getTime());
-  }
-
-  async getFAQs(search?: string, category?: string): Promise<FAQ[]> {
-    const allFAQs = await db.select().from(faqs);
-    
-    let filteredFAQs = allFAQs;
-    
-    if (search) {
-      filteredFAQs = filteredFAQs.filter(faq => 
-        faq.question.toLowerCase().includes(search.toLowerCase()) ||
-        faq.answer.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-    
-    if (category && category !== "All Topics") {
-      filteredFAQs = filteredFAQs.filter(faq => faq.category === category);
-    }
-    
-    return filteredFAQs;
-  }
-
-  async createFAQ(insertFAQ: InsertFAQ): Promise<FAQ> {
-    const [faq] = await db
-      .insert(faqs)
-      .values(insertFAQ)
-      .returning();
-    return faq;
-  }
-
-  async createVideoAnalysis(insertAnalysis: InsertVideoAnalysis): Promise<VideoAnalysis> {
-    const [analysis] = await db
-      .insert(videoAnalyses)
-      .values({
-        scenario: insertAnalysis.scenario,
-        overallScore: insertAnalysis.overallScore,
-        eyeContactScore: insertAnalysis.eyeContactScore,
-        facialExpressionScore: insertAnalysis.facialExpressionScore,
-        gestureScore: insertAnalysis.gestureScore,
-        postureScore: insertAnalysis.postureScore,
-        feedback: Array.isArray(insertAnalysis.feedback) ? insertAnalysis.feedback : [],
-        userId: insertAnalysis.userId || null,
-        createdAt: new Date()
-      })
-      .returning();
-    return analysis;
-  }
-
-  async getUserVideoAnalyses(userId?: number): Promise<VideoAnalysis[]> {
-    if (!userId) return [];
-    
-    const analyses = await db.select().from(videoAnalyses).where(eq(videoAnalyses.userId, userId));
-    return analyses.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  }
-}
-
-// Use database storage for production, but keep memory storage available for development
-export const storage = process.env.NODE_ENV === 'development' ? new DatabaseStorage() : new DatabaseStorage();

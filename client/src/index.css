@@ -98,3 +98,30 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: hsl(20, 14.3%, 4.1%);
 }
+
+/* Enhanced button styles */
+.btn-enhanced {
+  @apply relative overflow-hidden transition-all duration-300 transform hover:scale-105;
+}
+
+.btn-enhanced::before {
+  content: '';
+  @apply absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 transition-opacity duration-300;
+  transform: translateX(-100%);
+}
+
+.btn-enhanced:hover::before {
+  @apply opacity-20;
+  transform: translateX(100%);
+  transition: transform 0.6s ease-in-out;
+}
+
+/* Improved card hover effects */
+.card-hover {
+  @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+}
+
+/* Header height fix */
+.h-18 {
+  height: 4.5rem;
+}

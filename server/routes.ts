@@ -31,6 +31,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/articles", async (req, res) => {
+    try {
+      const articleSchema = z.object({
+        title: z.string().min(1),
+        excerpt: z.string().min(1),
+        content: z.string().min(1),
+        category: z.string().min(1),
+        author: z.string().min(1),
+        publishedAt: z.string().transform(str => new Date(str)),
+        readTime: z.number().positive(),
+        imageUrl: z.string().url().optional()
+      });
+
+      const data = articleSchema.parse(req.body);
+      const article = await storage.createArticle(data);
+      res.status(201).json(article);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid article data" });
+    }
+  });
+
   // Test routes
   app.get("/api/test-categories", async (req, res) => {
     try {

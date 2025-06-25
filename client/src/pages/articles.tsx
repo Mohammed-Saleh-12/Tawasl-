@@ -5,11 +5,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import ArticleFormModal from "@/components/article-form-modal";
 import type { Article } from "@shared/schema";
 
 export default function Articles() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All Categories");
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+  const [isArticleModalOpen, setIsArticleModalOpen] = useState(false);
 
   const { data: articles, isLoading } = useQuery<Article[]>({
     queryKey: ["/api/articles", search, category],
@@ -60,14 +65,41 @@ export default function Articles() {
     }).format(new Date(date));
   };
 
+  const openArticleModal = (article: Article) => {
+    setSelectedArticle(article);
+    setIsArticleModalOpen(true);
+  };
+
+  const formatContent = (content: string) => {
+    return content.split('\n').map((paragraph, index) => {
+      if (paragraph.startsWith('**') && paragraph.endsWith('**')) {
+        return <h3 key={index} className="font-bold text-lg mb-2 mt-4">{paragraph.slice(2, -2)}</h3>;
+      }
+      if (paragraph.startsWith('- ')) {
+        return <li key={index} className="ml-4 mb-1">{paragraph.slice(2)}</li>;
+      }
+      if (paragraph.trim() === '') {
+        return <br key={index} />;
+      }
+      return <p key={index} className="mb-3 leading-relaxed">{paragraph}</p>;
+    });
+  };
+
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       {/* Page Header */}
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold text-gray-900 mb-4">Communication Skills Articles</h1>
-        <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+        <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
           Learn from expert insights and practical guides to improve your communication abilities
         </p>
+        <Button 
+          onClick={() => setIsCreateModalOpen(true)}
+          className="gradient-primary text-white hover:shadow-lg transition-all duration-200"
+        >
+          <i className="fas fa-plus mr-2"></i>
+          Create New Article
+        </Button>
       </div>
 
       {/* Search and Filter */}
@@ -121,7 +153,7 @@ export default function Articles() {
         <>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {articles.map((article) => (
-              <Card key={article.id} className="overflow-hidden hover:shadow-xl transition-shadow">
+              <Card key={article.id} className="overflow-hidden card-hover">
                 {article.imageUrl && (
                   <img
                     src={article.imageUrl}
@@ -140,7 +172,11 @@ export default function Articles() {
                       <i className="far fa-clock mr-1"></i>
                       <span>{article.readTime} min read</span>
                     </div>
-                    <Button variant="ghost" className="text-primary hover:text-blue-700 p-0 h-auto">
+                    <Button 
+                      variant="ghost" 
+                      className="text-primary hover:text-blue-700 p-0 h-auto"
+                      onClick={() => openArticleModal(article)}
+                    >
                       Read More <i className="fas fa-arrow-right ml-1"></i>
                     </Button>
                   </div>
@@ -172,6 +208,69 @@ export default function Articles() {
             }
           </p>
         </div>
+      )}
+
+      {/* Article Creation Modal */}
+      <ArticleFormModal 
+        isOpen={isCreateModalOpen} 
+        onOpenChange={setIsCreateModalOpen} 
+      />
+
+      {/* Article Reading Modal */}
+      {selectedArticle && (
+        <Dialog open={isArticleModalOpen} onOpenChange={setIsArticleModalOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <div className={`text-sm font-semibold mb-2 ${getCategoryColor(selectedArticle.category)}`}>
+                {selectedArticle.category.toUpperCase()}
+              </div>
+              <DialogTitle className="text-2xl font-bold text-gray-900 text-left">
+                {selectedArticle.title}
+              </DialogTitle>
+              <div className="flex items-center justify-between text-sm text-gray-500 pt-2">
+                <div className="flex items-center space-x-4">
+                  <span>By {selectedArticle.author}</span>
+                  <span>•</span>
+                  <span>{formatDate(selectedArticle.publishedAt)}</span>
+                  <span>•</span>
+                  <div className="flex items-center">
+                    <i className="far fa-clock mr-1"></i>
+                    <span>{selectedArticle.readTime} min read</span>
+                  </div>
+                </div>
+              </div>
+            </DialogHeader>
+            
+            <div className="space-y-6">
+              {selectedArticle.imageUrl && (
+                <img
+                  src={selectedArticle.imageUrl}
+                  alt={selectedArticle.title}
+                  className="w-full h-64 object-cover rounded-lg"
+                />
+              )}
+              
+              <div className="prose max-w-none">
+                <div className="text-lg text-gray-700 mb-6 font-medium">
+                  {selectedArticle.excerpt}
+                </div>
+                
+                <div className="text-gray-700 leading-relaxed">
+                  {formatContent(selectedArticle.content)}
+                </div>
+              </div>
+              
+              <div className="pt-6 border-t border-gray-200">
+                <Button 
+                  onClick={() => setIsArticleModalOpen(false)}
+                  className="gradient-primary text-white"
+                >
+                  Close Article
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </main>
   );

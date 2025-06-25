@@ -88,13 +88,13 @@ export default function Home() {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4">
                   <Link href="/tests">
-                    <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-gray-100">
+                    <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-gray-100 btn-enhanced">
                       <i className="fas fa-play mr-2"></i>
                       Start Your First Test
                     </Button>
                   </Link>
                   <Link href="/video-practice">
-                    <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary">
+                    <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary btn-enhanced">
                       <i className="fas fa-video mr-2"></i>
                       Practice with Video
                     </Button>
@@ -137,7 +137,7 @@ export default function Home() {
             
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {features.map((feature, index) => (
-                <Card key={index} className="bg-gray-50 hover:shadow-lg transition-shadow">
+                <Card key={index} className="bg-gray-50 card-hover">
                   <CardContent className="p-8">
                     <div className={`${feature.color} text-white p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6`}>
                       <i className={`${feature.icon} text-xl`}></i>

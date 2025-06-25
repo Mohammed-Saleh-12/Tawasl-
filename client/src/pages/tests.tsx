@@ -88,7 +88,7 @@ export default function Tests() {
             {testCategories.map((category) => {
               const colors = getColorClasses(category.color);
               return (
-                <Card key={category.id} className="hover:shadow-xl transition-shadow">
+                <Card key={category.id} className="card-hover">
                   <CardContent className="p-8">
                     <div className={`${colors.bg} text-white p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6`}>
                       <i className={`${category.icon} text-xl`}></i>
@@ -106,7 +106,7 @@ export default function Tests() {
                       </div>
                     </div>
                     <Button
-                      className={`w-full ${colors.bg} text-white ${colors.hover} transition-colors`}
+                      className={`w-full ${colors.bg} text-white ${colors.hover} transition-colors btn-enhanced`}
                       onClick={() => handleStartTest(category)}
                     >
                       Start Test

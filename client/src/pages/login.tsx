@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { useAuth } from "@/lib/auth";
 
-const ADMIN_USERNAME = "admin";
-const ADMIN_PASSWORD = "password123";
+const ADMIN_USERNAME = "mohammed";
+const ADMIN_PASSWORD = "0000";
 
 export default function Login() {
   const [, setLocation] = useLocation();
+  const { login } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -13,7 +15,7 @@ export default function Login() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-      localStorage.setItem("platform_logged_in", "true");
+      login();
       setLocation("/");
     } else {
       setError("Invalid credentials");

@@ -60,3 +60,5 @@ Desktop.ini
 # Replit specific
 .replit
 .config/
+.vercel
+.env*.local

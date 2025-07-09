@@ -5,12 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
+import { apiClient } from "@/lib/api";
 
 interface Message {
   id: string;
   text: string;
   isUser: boolean;
   timestamp: Date;
+  analysis?: {
+    communicationStyle?: string;
+    suggestions?: string[];
+    confidence?: number;
+  };
 }
 
 interface AIChatModalProps {
@@ -22,7 +28,7 @@ export default function AIChatModal({ isOpen, onOpenChange }: AIChatModalProps) 
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
-      text: "Hello! I'm your AI communication coach. I'm here to help you practice your conversation skills. What would you like to work on today? I can help with:\n\n• Job interview practice\n• Presentation skills\n• Active listening exercises\n• Conflict resolution scenarios",
+      text: "Hello! I'm your AI communication coach. I'm here to help you improve your communication skills through personalized coaching and analysis. What would you like to work on today?",
       isUser: false,
       timestamp: new Date()
     }
@@ -34,24 +40,19 @@ export default function AIChatModal({ isOpen, onOpenChange }: AIChatModalProps) 
 
   const chatMutation = useMutation({
     mutationFn: async (message: string) => {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          message, 
-          context: messages.slice(-5) // Send last 5 messages for context
-        })
+      const response = await apiClient.post("/chat", { 
+        message, 
+        context: messages.slice(-5) // Send last 5 messages for context
       });
-      
-      if (!response.ok) throw new Error("Failed to send message");
-      return response.json();
+      return response;
     },
     onSuccess: (data) => {
       const aiMessage: Message = {
         id: Date.now().toString(),
         text: data.response,
         isUser: false,
-        timestamp: new Date()
+        timestamp: new Date(),
+        analysis: data.analysis
       };
       setMessages(prev => [...prev, aiMessage]);
     },
@@ -138,25 +139,28 @@ export default function AIChatModal({ isOpen, onOpenChange }: AIChatModalProps) 
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl w-full h-[600px] flex flex-col p-0">
+      <DialogContent className="max-w-4xl w-full h-[600px] flex flex-col p-0 bg-white border-0 shadow-2xl">
         {/* Chat Header */}
-        <DialogHeader className="p-6 border-b border-gray-200">
+        <DialogHeader className="p-6 border-b border-gray-200 bg-white">
           <div className="flex items-center space-x-3">
-            <div className="gradient-primary text-white p-3 rounded-full">
-              <i className="fas fa-robot text-xl"></i>
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-3 rounded-full">
+              <i className="fas fa-brain text-xl"></i>
             </div>
             <div>
-              <DialogTitle className="text-xl font-bold text-gray-900">AI Communication Coach</DialogTitle>
+              <DialogTitle className="text-xl font-bold text-gray-900">AI Communication Skills Coach</DialogTitle>
               <p className="text-sm text-green-600">
                 <i className="fas fa-circle text-xs mr-1"></i>
-                Online - Ready to help you practice
+                Online - Powered by Real AI
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Personalized communication coaching • Real-time analysis • Dynamic responses
               </p>
             </div>
           </div>
         </DialogHeader>
 
         {/* Chat Messages */}
-        <ScrollArea className="flex-1 p-6" ref={scrollAreaRef}>
+        <ScrollArea className="flex-1 p-6 bg-white" ref={scrollAreaRef}>
           <div className="space-y-4">
             {messages.map((message) => (
               <div
@@ -171,17 +175,58 @@ export default function AIChatModal({ isOpen, onOpenChange }: AIChatModalProps) 
                 <div
                   className={`max-w-md p-4 rounded-lg ${
                     message.isUser
-                      ? 'bg-primary text-white'
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
                       : 'bg-gray-100 text-gray-800'
                   }`}
                 >
                   <p className="whitespace-pre-line">{message.text}</p>
+                  
+                  {/* Communication Analysis for AI messages */}
+                  {!message.isUser && message.analysis && (
+                    <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <i className="fas fa-chart-line text-blue-600"></i>
+                        <span className="text-sm font-semibold text-blue-800">Communication Analysis</span>
+                      </div>
+                      {message.analysis.communicationStyle && (
+                        <p className="text-xs text-blue-700 mb-1">
+                          <strong>Style:</strong> {message.analysis.communicationStyle}
+                        </p>
+                      )}
+                      {message.analysis.suggestions && message.analysis.suggestions.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-xs text-blue-700 mb-1"><strong>Suggestions:</strong></p>
+                          <ul className="text-xs text-blue-600 space-y-1">
+                            {message.analysis.suggestions.map((suggestion, index) => (
+                              <li key={index} className="flex items-start gap-1">
+                                <span className="text-blue-500 mt-1">•</span>
+                                <span>{suggestion}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {message.analysis.confidence && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className="text-xs text-blue-700">Confidence:</span>
+                          <div className="flex-1 bg-blue-200 rounded-full h-2">
+                            <div 
+                              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${message.analysis.confidence * 100}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-xs text-blue-700">{Math.round(message.analysis.confidence * 100)}%</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
                   <p className={`text-xs mt-2 ${message.isUser ? 'text-blue-100' : 'text-gray-500'}`}>
                     {formatTime(message.timestamp)}
                   </p>
                 </div>
                 {message.isUser && (
-                  <div className="bg-primary text-white p-2 rounded-full flex-shrink-0">
+                  <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-2 rounded-full flex-shrink-0 shadow-lg">
                     <i className="fas fa-user text-sm"></i>
                   </div>
                 )}
@@ -205,44 +250,41 @@ export default function AIChatModal({ isOpen, onOpenChange }: AIChatModalProps) 
         </ScrollArea>
 
         {/* Chat Input */}
-        <div className="p-6 border-t border-gray-200">
-          <div className="flex items-center space-x-4">
+        <div className="p-6 border-t border-gray-200 bg-white">
+          <div className="flex items-stretch space-x-3">
             <div className="flex-1 relative">
               <Input
                 type="text"
-                placeholder="Type your message..."
+                placeholder="Start a conversation about communication skills..."
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
-                className="pr-12"
+                className="border-2 border-gray-200 focus:border-blue-500 rounded-xl h-12"
                 disabled={chatMutation.isPending}
               />
-              <Button
-                variant="ghost"
-                size="sm"
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
-              >
-                <i className="fas fa-smile text-gray-400"></i>
-              </Button>
             </div>
             <Button
               onClick={sendMessage}
               disabled={!inputMessage.trim() || chatMutation.isPending}
-              className="bg-primary hover:bg-blue-700"
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 h-12 rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 flex items-center gap-2 justify-center"
             >
-              <i className="fas fa-paper-plane"></i>
+              <i className="fas fa-paper-plane text-lg"></i>
             </Button>
             <Button
               onClick={startVoiceInput}
               disabled={isListening}
-              className={`${isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-red-500 hover:bg-red-600'}`}
+              className={`px-4 h-12 rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 flex items-center gap-2 justify-center ${
+                isListening 
+                  ? 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white animate-pulse' 
+                  : 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white'
+              }`}
               title="Voice Input"
             >
-              <i className={`fas fa-microphone ${isListening ? 'animate-pulse' : ''}`}></i>
+              <i className={`fas fa-microphone text-lg ${isListening ? 'animate-bounce' : ''}`}></i>
             </Button>
           </div>
           <div className="flex items-center justify-between mt-3 text-sm text-gray-500">
-            <span>AI will analyze your communication style and provide feedback</span>
+            <span>🤖 Powered by Real AI - Dynamic communication coaching</span>
             <span>Press Enter to send</span>
           </div>
         </div>

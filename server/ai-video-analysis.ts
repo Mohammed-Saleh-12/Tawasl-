@@ -36,9 +36,9 @@ export interface AIAnalysisResult {
   };
 }
 
-const PYTHON_PATH = 'py';
-const PYTHON_ARGS = ['-3.11'];
-const SCRIPT_PATH = join(process.cwd(), 'server', 'ai-scripts', 'real_ai_analysis.py');
+const PYTHON_PATH = 'python';
+const PYTHON_ARGS = [];
+const SCRIPT_PATH = join(process.cwd(), 'server', 'ai-scripts', 'video_analysis_opencv.py');
 
 let pythonAvailable = false;
 
@@ -57,20 +57,71 @@ export async function analyzeVideoWithAI(
   scenario: string,
   duration: number
 ): Promise<AIAnalysisResult> {
-  if (!pythonAvailable) {
-    throw new Error('AI analysis is not available: Python environment not detected.');
-  }
-  const tempVideoPath = join(tmpdir(), `video_analysis_${Date.now()}.mp4`);
-  writeFileSync(tempVideoPath, videoBuffer);
   try {
-    const result = await analyzeWithPython(tempVideoPath, scenario, duration);
-    unlinkSync(tempVideoPath);
-    console.log('[AI Analysis] Used:', result.analysisDetails?.analysisMethod || 'Unknown');
-    return result;
+    if (pythonAvailable) {
+      const tempVideoPath = join(tmpdir(), `video_analysis_${Date.now()}.webm`);
+      writeFileSync(tempVideoPath, videoBuffer);
+
+      try {
+        const result = await analyzeWithPython(tempVideoPath, scenario, duration);
+        unlinkSync(tempVideoPath);
+        console.log('[AI Analysis] Used: Real Python Analysis');
+        return result;
+      } catch (error) {
+        console.error('Python analysis failed:', error);
+        unlinkSync(tempVideoPath);
+        // Return zero scores instead of mock analysis
+        return {
+          overallScore: 0,
+          eyeContactScore: 0,
+          facialExpressionScore: 0,
+          gestureScore: 0,
+          postureScore: 0,
+          feedback: ["Analysis failed. Please ensure your video contains a clear view of one person."],
+          confidence: 0.0,
+          analysisDetails: {
+            eyeContact: { percentage: 0, duration: 0, consistency: 0 },
+            facialExpressions: { emotions: { confidence: 0, engagement: 0 }, confidence: 0, engagement: 0 },
+            gestures: { frequency: 0, appropriateness: 0, variety: 0 },
+            posture: { confidence: 0, stability: 0, professionalism: 0 }
+          }
+        };
+      }
+    } else {
+      console.log('Python not available - returning zero scores');
+      return {
+        overallScore: 0,
+        eyeContactScore: 0,
+        facialExpressionScore: 0,
+        gestureScore: 0,
+        postureScore: 0,
+        feedback: ["Python analysis not available. Please ensure your video contains a clear view of one person."],
+        confidence: 0.0,
+        analysisDetails: {
+          eyeContact: { percentage: 0, duration: 0, consistency: 0 },
+          facialExpressions: { emotions: { confidence: 0, engagement: 0 }, confidence: 0, engagement: 0 },
+          gestures: { frequency: 0, appropriateness: 0, variety: 0 },
+          posture: { confidence: 0, stability: 0, professionalism: 0 }
+        }
+      };
+    }
   } catch (error) {
-    unlinkSync(tempVideoPath);
-    console.error('Python analysis failed:', error);
-    throw new Error('AI analysis failed: ' + error);
+    console.error('Video analysis failed:', error);
+    return {
+      overallScore: 0,
+      eyeContactScore: 0,
+      facialExpressionScore: 0,
+      gestureScore: 0,
+      postureScore: 0,
+      feedback: ["Analysis failed. Please ensure your video contains a clear view of one person."],
+      confidence: 0.0,
+      analysisDetails: {
+        eyeContact: { percentage: 0, duration: 0, consistency: 0 },
+        facialExpressions: { emotions: { confidence: 0, engagement: 0 }, confidence: 0, engagement: 0 },
+        gestures: { frequency: 0, appropriateness: 0, variety: 0 },
+        posture: { confidence: 0, stability: 0, professionalism: 0 }
+      }
+    };
   }
 }
 
@@ -80,10 +131,13 @@ async function analyzeWithPython(
   duration: number
 ): Promise<AIAnalysisResult> {
   return new Promise((resolve, reject) => {
-    const pythonProcess = spawn(
-      PYTHON_PATH,
-      [...PYTHON_ARGS, SCRIPT_PATH, videoPath, scenario, duration.toString()]
-    );
+    const pythonProcess = spawn(PYTHON_PATH, [
+      ...PYTHON_ARGS,
+      SCRIPT_PATH,
+      videoPath,
+      scenario,
+      duration.toString()
+    ]);
 
     let output = '';
     let errorOutput = '';
@@ -100,7 +154,46 @@ async function analyzeWithPython(
       if (code === 0) {
         try {
           const result = JSON.parse(output);
-          resolve(result);
+          
+          // Check if the Python script returned an error status
+          if (result.status === 'error') {
+            console.log('Python analysis detected issue:', result.message);
+            // Return zero scores with the error message
+            resolve({
+              overallScore: 0,
+              eyeContactScore: 0,
+              facialExpressionScore: 0,
+              gestureScore: 0,
+              postureScore: 0,
+              feedback: [result.message],
+              confidence: 0.0,
+              analysisDetails: {
+                eyeContact: {
+                  percentage: 0,
+                  duration: 0,
+                  consistency: 0
+                },
+                facialExpressions: {
+                  emotions: { confidence: 0, engagement: 0 },
+                  confidence: 0,
+                  engagement: 0
+                },
+                gestures: {
+                  frequency: 0,
+                  appropriateness: 0,
+                  variety: 0
+                },
+                posture: {
+                  confidence: 0,
+                  stability: 0,
+                  professionalism: 0
+                }
+              }
+            });
+          } else {
+            // Success case - return the analysis results
+            resolve(result);
+          }
         } catch (error) {
           console.error('Failed to parse Python output:', error);
           reject(new Error(`Failed to parse AI analysis result: ${error}`));

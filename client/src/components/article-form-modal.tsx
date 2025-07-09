@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
@@ -14,72 +12,170 @@ interface ArticleFormModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
+// Simple Modal Component with completely white interface
+function SimpleModal({ isOpen, onClose, title, children }: {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div 
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        zIndex: 99999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backdropFilter: 'blur(4px)'
+      }}
+      onClick={onClose}
+    >
+      <div 
+        style={{
+          backgroundColor: '#ffffff',
+          padding: '32px',
+          borderRadius: '12px',
+          maxWidth: '800px',
+          width: '95%',
+          maxHeight: '90vh',
+          overflow: 'auto',
+          position: 'relative',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          border: '1px solid #e5e7eb'
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          marginBottom: '24px', 
+          borderBottom: '2px solid #e5e7eb', 
+          paddingBottom: '20px',
+          backgroundColor: '#ffffff'
+        }}>
+          <div style={{ backgroundColor: '#ffffff' }}>
+            <h2 style={{ 
+              fontSize: '28px', 
+              fontWeight: 'bold', 
+              margin: 0, 
+              color: '#111827',
+              textShadow: 'none',
+              backgroundColor: '#ffffff'
+            }}>
+              {title}
+            </h2>
+            <p style={{ 
+              margin: '8px 0 0 0', 
+              color: '#6b7280',
+              backgroundColor: '#ffffff'
+            }}>
+              Share your communication expertise with the community
+            </p>
+          </div>
+          <button 
+            onClick={onClose}
+            style={{
+              background: '#f3f4f6',
+              border: '1px solid #d1d5db',
+              borderRadius: '50%',
+              fontSize: '20px',
+              cursor: 'pointer',
+              padding: '8px',
+              width: '40px',
+              height: '40px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#6b7280',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = '#e5e7eb';
+              e.currentTarget.style.color = '#374151';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = '#f3f4f6';
+              e.currentTarget.style.color = '#6b7280';
+            }}
+          >
+            ×
+          </button>
+        </div>
+        <div style={{ backgroundColor: '#ffffff' }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ArticleFormModal({ isOpen, onOpenChange }: ArticleFormModalProps) {
   const [formData, setFormData] = useState({
-    title: "",
-    excerpt: "",
-    content: "",
-    category: "",
-    author: "",
+    title: '',
+    excerpt: '',
+    content: '',
+    category: '',
+    author: '',
+    publishedAt: new Date().toISOString(),
     readTime: 5,
-    imageUrl: ""
+    imageUrl: ''
   });
 
   const { toast } = useToast();
 
   const createArticleMutation = useMutation({
-    mutationFn: async (articleData: any) => {
-      const response = await fetch("/api/articles", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...articleData,
-          publishedAt: new Date().toISOString()
-        })
+    mutationFn: async (data: any) => {
+      const response = await fetch('/api/articles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
       });
       
-      if (!response.ok) throw new Error("Failed to create article");
+      if (!response.ok) {
+        throw new Error('Failed to create article');
+      }
+      
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/articles"] });
+      queryClient.invalidateQueries({ queryKey: ['/api/articles'] });
       toast({
-        title: "Article Created",
-        description: "Your article has been published successfully!"
+        title: "Success",
+        description: "Article published successfully!",
       });
       onOpenChange(false);
       resetForm();
     },
     onError: () => {
       toast({
-        title: "Creation Failed",
-        description: "There was an error creating your article. Please try again.",
+        title: "Error",
+        description: "Failed to publish article. Please try again.",
         variant: "destructive"
       });
     }
   });
 
-  const categories = [
-    "Verbal Communication",
-    "Non-Verbal Communication",
-    "Active Listening",
-    "Body Language", 
-    "Presentation Skills",
-    "Digital Communication",
-    "Interpersonal Skills",
-    "Workplace Communication",
-    "Team Communication"
-  ];
-
   const resetForm = () => {
     setFormData({
-      title: "",
-      excerpt: "",
-      content: "",
-      category: "",
-      author: "",
+      title: '',
+      excerpt: '',
+      content: '',
+      category: '',
+      author: '',
+      publishedAt: new Date().toISOString(),
       readTime: 5,
-      imageUrl: ""
+      imageUrl: ''
     });
   };
 
@@ -103,162 +199,317 @@ export default function ArticleFormModal({ isOpen, onOpenChange }: ArticleFormMo
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-gray-900">Create New Article</DialogTitle>
-          <p className="text-gray-600">Share your communication expertise with the community</p>
-        </DialogHeader>
+    <SimpleModal
+      isOpen={isOpen}
+      onClose={() => onOpenChange(false)}
+      title="Create New Article"
+    >
+      <form onSubmit={handleSubmit} style={{ 
+        backgroundColor: '#ffffff',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '24px'
+      }}>
+        {/* Title */}
+        <div style={{ backgroundColor: '#ffffff' }}>
+          <label style={{ 
+            display: 'block', 
+            marginBottom: '8px', 
+            fontWeight: 'bold', 
+            color: '#374151',
+            backgroundColor: '#ffffff'
+          }}>
+            Article Title *
+          </label>
+          <input
+            type="text"
+            value={formData.title}
+            onChange={(e) => handleInputChange("title", e.target.value)}
+            placeholder="Enter a compelling title for your article..."
+            required
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              fontSize: '16px',
+              backgroundColor: '#ffffff',
+              color: '#374151'
+            }}
+          />
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Title */}
-            <div className="md:col-span-2">
-              <Label htmlFor="title" className="text-sm font-medium text-gray-700">
-                Article Title *
-              </Label>
-              <Input
-                id="title"
-                value={formData.title}
-                onChange={(e) => handleInputChange("title", e.target.value)}
-                placeholder="Enter an engaging article title"
-                className="mt-1"
-                required
-              />
-            </div>
-
-            {/* Category */}
-            <div>
-              <Label htmlFor="category" className="text-sm font-medium text-gray-700">
-                Category *
-              </Label>
-              <Select value={formData.category} onValueChange={(value) => handleInputChange("category", value)}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Author */}
-            <div>
-              <Label htmlFor="author" className="text-sm font-medium text-gray-700">
-                Author Name *
-              </Label>
-              <Input
-                id="author"
-                value={formData.author}
-                onChange={(e) => handleInputChange("author", e.target.value)}
-                placeholder="Your name"
-                className="mt-1"
-                required
-              />
-            </div>
-
-            {/* Read Time */}
-            <div>
-              <Label htmlFor="readTime" className="text-sm font-medium text-gray-700">
-                Estimated Read Time (minutes)
-              </Label>
-              <Input
-                id="readTime"
-                type="number"
-                min="1"
-                max="60"
-                value={formData.readTime}
-                onChange={(e) => handleInputChange("readTime", parseInt(e.target.value) || 5)}
-                className="mt-1"
-              />
-            </div>
-
-            {/* Image URL */}
-            <div>
-              <Label htmlFor="imageUrl" className="text-sm font-medium text-gray-700">
-                Image URL (optional)
-              </Label>
-              <Input
-                id="imageUrl"
-                type="url"
-                value={formData.imageUrl}
-                onChange={(e) => handleInputChange("imageUrl", e.target.value)}
-                placeholder="https://example.com/image.jpg"
-                className="mt-1"
-              />
-            </div>
-
-            {/* Excerpt */}
-            <div className="md:col-span-2">
-              <Label htmlFor="excerpt" className="text-sm font-medium text-gray-700">
-                Article Excerpt *
-              </Label>
-              <Textarea
-                id="excerpt"
-                value={formData.excerpt}
-                onChange={(e) => handleInputChange("excerpt", e.target.value)}
-                placeholder="Write a compelling summary that will appear in article previews"
-                className="mt-1 min-h-[80px]"
-                required
-              />
-            </div>
-
-            {/* Content */}
-            <div className="md:col-span-2">
-              <Label htmlFor="content" className="text-sm font-medium text-gray-700">
-                Article Content *
-              </Label>
-              <Textarea
-                id="content"
-                value={formData.content}
-                onChange={(e) => handleInputChange("content", e.target.value)}
-                placeholder="Write your full article content here. You can use markdown formatting..."
-                className="mt-1 min-h-[300px]"
-                required
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Tip: Use **bold**, *italic*, and bullet points to format your content
-              </p>
-            </div>
+        {/* Author and Category Row */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: '1fr 1fr', 
+          gap: '16px',
+          backgroundColor: '#ffffff'
+        }}>
+          <div style={{ backgroundColor: '#ffffff' }}>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontWeight: 'bold', 
+              color: '#374151',
+              backgroundColor: '#ffffff'
+            }}>
+              Author Name *
+            </label>
+            <input
+              type="text"
+              value={formData.author}
+              onChange={(e) => handleInputChange("author", e.target.value)}
+              placeholder="Your name..."
+              required
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                fontSize: '16px',
+                backgroundColor: '#ffffff',
+                color: '#374151'
+              }}
+            />
           </div>
 
-          {/* Form Actions */}
-          <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t">
-            <Button
+          <div style={{ backgroundColor: '#ffffff' }}>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontWeight: 'bold', 
+              color: '#374151',
+              backgroundColor: '#ffffff'
+            }}>
+              Category *
+            </label>
+            <select
+              value={formData.category}
+              onChange={(e) => handleInputChange("category", e.target.value)}
+              required
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                fontSize: '16px',
+                backgroundColor: '#ffffff',
+                color: '#374151'
+              }}
+            >
+              <option value="">Select a category</option>
+              <option value="Verbal Communication">Verbal Communication</option>
+              <option value="Non-Verbal Communication">Non-Verbal Communication</option>
+              <option value="Active Listening">Active Listening</option>
+              <option value="Body Language">Body Language</option>
+              <option value="Presentation Skills">Presentation Skills</option>
+              <option value="Digital Communication">Digital Communication</option>
+              <option value="Interpersonal Skills">Interpersonal Skills</option>
+              <option value="Workplace Communication">Workplace Communication</option>
+              <option value="Team Communication">Team Communication</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Read Time and Image URL Row */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: '1fr 2fr', 
+          gap: '16px',
+          backgroundColor: '#ffffff'
+        }}>
+          <div style={{ backgroundColor: '#ffffff' }}>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontWeight: 'bold', 
+              color: '#374151',
+              backgroundColor: '#ffffff'
+            }}>
+              Read Time (minutes)
+            </label>
+            <input
+              type="number"
+              value={formData.readTime}
+              onChange={(e) => handleInputChange("readTime", parseInt(e.target.value))}
+              min="1"
+              max="60"
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                fontSize: '16px',
+                backgroundColor: '#ffffff',
+                color: '#374151'
+              }}
+            />
+          </div>
+
+          <div style={{ backgroundColor: '#ffffff' }}>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontWeight: 'bold', 
+              color: '#374151',
+              backgroundColor: '#ffffff'
+            }}>
+              Image URL (optional)
+            </label>
+            <input
+              type="url"
+              value={formData.imageUrl}
+              onChange={(e) => handleInputChange("imageUrl", e.target.value)}
+              placeholder="https://example.com/image.jpg"
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                fontSize: '16px',
+                backgroundColor: '#ffffff',
+                color: '#374151'
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Excerpt */}
+        <div style={{ backgroundColor: '#ffffff' }}>
+          <label style={{ 
+            display: 'block', 
+            marginBottom: '8px', 
+            fontWeight: 'bold', 
+            color: '#374151',
+            backgroundColor: '#ffffff'
+          }}>
+            Article Excerpt *
+          </label>
+          <textarea
+            value={formData.excerpt}
+            onChange={(e) => handleInputChange("excerpt", e.target.value)}
+            placeholder="Write a brief summary of your article..."
+            rows={3}
+            required
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              fontSize: '16px',
+              backgroundColor: '#ffffff',
+              color: '#374151',
+              resize: 'vertical',
+              minHeight: '80px'
+            }}
+          />
+        </div>
+
+        {/* Content */}
+        <div style={{ backgroundColor: '#ffffff' }}>
+          <label style={{ 
+            display: 'block', 
+            marginBottom: '8px', 
+            fontWeight: 'bold', 
+            color: '#374151',
+            backgroundColor: '#ffffff'
+          }}>
+            Article Content *
+          </label>
+          <textarea
+            value={formData.content}
+            onChange={(e) => handleInputChange("content", e.target.value)}
+            placeholder="Write your full article content here. You can use markdown formatting..."
+            rows={12}
+            required
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              fontSize: '16px',
+              backgroundColor: '#ffffff',
+              color: '#374151',
+              resize: 'vertical',
+              minHeight: '300px'
+            }}
+          />
+          <p style={{ 
+            fontSize: '12px', 
+            color: '#6b7280', 
+            marginTop: '4px',
+            backgroundColor: '#ffffff'
+          }}>
+            Tip: Use **bold**, *italic*, and bullet points to format your content
+          </p>
+        </div>
+
+        {/* Form Actions */}
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '16px', 
+          paddingTop: '24px', 
+          borderTop: '1px solid #e5e7eb',
+          backgroundColor: '#ffffff'
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            gap: '12px',
+            backgroundColor: '#ffffff'
+          }}>
+            <button
               type="button"
-              variant="outline"
               onClick={() => {
                 onOpenChange(false);
                 resetForm();
               }}
-              className="flex-1"
+              style={{
+                flex: 1,
+                padding: '12px 24px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                backgroundColor: '#ffffff',
+                color: '#374151',
+                cursor: 'pointer',
+                fontSize: '16px',
+                fontWeight: '500'
+              }}
             >
               Cancel
-            </Button>
-            <Button
+            </button>
+            <button
               type="submit"
               disabled={createArticleMutation.isPending}
-              className="flex-1 bg-primary hover:bg-blue-700"
+              style={{
+                flex: 1,
+                padding: '12px 24px',
+                border: 'none',
+                borderRadius: '6px',
+                backgroundColor: '#3B82F6',
+                color: 'white',
+                cursor: createArticleMutation.isPending ? 'not-allowed' : 'pointer',
+                fontSize: '16px',
+                fontWeight: '500',
+                opacity: createArticleMutation.isPending ? 0.6 : 1
+              }}
             >
               {createArticleMutation.isPending ? (
                 <>
-                  <i className="fas fa-spinner animate-spin mr-2"></i>
+                  <i className="fas fa-spinner fa-spin" style={{ marginRight: '8px' }}></i>
                   Publishing...
                 </>
               ) : (
                 <>
-                  <i className="fas fa-publish mr-2"></i>
+                  <i className="fas fa-publish" style={{ marginRight: '8px' }}></i>
                   Publish Article
                 </>
               )}
-            </Button>
+            </button>
           </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </form>
+    </SimpleModal>
   );
 }

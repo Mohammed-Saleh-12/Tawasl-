@@ -1,13 +1,102 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ArticleFormModal from "@/components/article-form-modal";
+import { apiClient } from "@/lib/api";
 import type { Article } from "@shared/schema";
+
+// Simple Modal Component for Article Reading
+function SimpleArticleModal({ isOpen, onClose, children }: {
+  isOpen: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div 
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        zIndex: 99999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backdropFilter: 'blur(4px)'
+      }}
+      onClick={onClose}
+    >
+      <div 
+        style={{
+          backgroundColor: '#ffffff',
+          padding: '32px',
+          borderRadius: '12px',
+          maxWidth: '900px',
+          width: '95%',
+          maxHeight: '90vh',
+          overflow: 'auto',
+          position: 'relative',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          border: '1px solid #e5e7eb'
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'flex-start', 
+          marginBottom: '24px', 
+          borderBottom: '2px solid #e5e7eb', 
+          paddingBottom: '20px',
+          backgroundColor: '#ffffff'
+        }}>
+          <div style={{ backgroundColor: '#ffffff', flex: 1 }}>
+            {children}
+          </div>
+          <button 
+            onClick={onClose}
+            style={{
+              background: '#f3f4f6',
+              border: '1px solid #d1d5db',
+              borderRadius: '50%',
+              fontSize: '20px',
+              cursor: 'pointer',
+              padding: '8px',
+              width: '40px',
+              height: '40px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#6b7280',
+              transition: 'all 0.2s ease',
+              marginLeft: '16px',
+              flexShrink: 0
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = '#e5e7eb';
+              e.currentTarget.style.color = '#374151';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = '#f3f4f6';
+              e.currentTarget.style.color = '#6b7280';
+            }}
+          >
+            ×
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Articles() {
   const [search, setSearch] = useState("");
@@ -15,21 +104,23 @@ export default function Articles() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [isArticleModalOpen, setIsArticleModalOpen] = useState(false);
+  const [, setLocation] = useLocation();
 
   const isLoggedIn = typeof window !== 'undefined' && localStorage.getItem('platform_logged_in') === 'true';
 
-  const { data: articles, isLoading } = useQuery<Article[]>({
+  const { data: articlesData, isLoading } = useQuery({
     queryKey: ["/api/articles", search, category],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (search) params.append("search", search);
       if (category !== "All Categories") params.append("category", category);
       
-      const response = await fetch(`/api/articles?${params}`);
-      if (!response.ok) throw new Error("Failed to fetch articles");
-      return response.json();
+      const response = await apiClient.get(`/articles?${params}`);
+      return response.articles || response;
     }
   });
+
+  const articles = Array.isArray(articlesData) ? articlesData : (articlesData?.articles || []);
 
   const categories = [
     "All Categories",
@@ -45,26 +136,26 @@ export default function Articles() {
   ];
 
   const getCategoryColor = (category: string) => {
-    const colors: Record<string, string> = {
-      "Verbal Communication": "text-primary",
-      "Non-Verbal Communication": "text-secondary",
-      "Digital Communication": "text-accent",
-      "Interpersonal Skills": "text-yellow-600",
-      "Workplace Communication": "text-indigo-600",
-      "Team Communication": "text-pink-600",
-      "Presentation Skills": "text-purple-600",
-      "Body Language": "text-green-600",
-      "Active Listening": "text-blue-600"
+    const colors: { [key: string]: string } = {
+      "Verbal Communication": "text-blue-600 bg-blue-100",
+      "Non-Verbal Communication": "text-purple-600 bg-purple-100",
+      "Active Listening": "text-green-600 bg-green-100",
+      "Body Language": "text-orange-600 bg-orange-100",
+      "Presentation Skills": "text-red-600 bg-red-100",
+      "Digital Communication": "text-indigo-600 bg-indigo-100",
+      "Interpersonal Skills": "text-pink-600 bg-pink-100",
+      "Workplace Communication": "text-teal-600 bg-teal-100",
+      "Team Communication": "text-yellow-600 bg-yellow-100"
     };
-    return colors[category] || "text-gray-600";
+    return colors[category] || "text-gray-600 bg-gray-100";
   };
 
   const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
+    return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',
-      month: 'short',
+      month: 'long',
       day: 'numeric'
-    }).format(new Date(date));
+    });
   };
 
   const openArticleModal = (article: Article) => {
@@ -72,37 +163,70 @@ export default function Articles() {
     setIsArticleModalOpen(true);
   };
 
+  const handleDeleteClick = async (article: Article, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm(`Are you sure you want to delete "${article.title}"?`)) {
+      try {
+        await apiClient.delete(`/articles/${article.id}`);
+        // Refresh the articles list
+        window.location.reload();
+      } catch (error) {
+        console.error('Error deleting article:', error);
+        alert('Error deleting article');
+      }
+    }
+  };
+
   const formatContent = (content: string) => {
-    return content.split('\n').map((paragraph, index) => {
-      if (paragraph.startsWith('**') && paragraph.endsWith('**')) {
-        return <h3 key={index} className="font-bold text-lg mb-2 mt-4">{paragraph.slice(2, -2)}</h3>;
-      }
-      if (paragraph.startsWith('- ')) {
-        return <li key={index} className="ml-4 mb-1">{paragraph.slice(2)}</li>;
-      }
-      if (paragraph.trim() === '') {
-        return <br key={index} />;
-      }
-      return <p key={index} className="mb-3 leading-relaxed">{paragraph}</p>;
-    });
+    // Simple markdown-like formatting
+    return content
+      .split('\n')
+      .map((line, index) => {
+        if (line.startsWith('**') && line.endsWith('**')) {
+          return <strong key={index} style={{ backgroundColor: '#ffffff' }}>{line.slice(2, -2)}</strong>;
+        }
+        if (line.startsWith('*') && line.endsWith('*')) {
+          return <em key={index} style={{ backgroundColor: '#ffffff' }}>{line.slice(1, -1)}</em>;
+        }
+        if (line.startsWith('- ')) {
+          return <li key={index} style={{ backgroundColor: '#ffffff' }}>{line.slice(2)}</li>;
+        }
+        if (line.trim() === '') {
+          return <br key={index} />;
+        }
+        return <p key={index} style={{ backgroundColor: '#ffffff', marginBottom: '12px' }}>{line}</p>;
+      });
   };
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      {/* Back to Home Button for Logged-in Users */}
+      {isLoggedIn && (
+        <div className="mb-6">
+          <Button 
+            onClick={() => setLocation('/')}
+            variant="outline"
+            className="flex items-center gap-2 bg-white border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 transition-all duration-200 shadow-sm"
+          >
+            <i className="fas fa-arrow-left"></i>
+            Back to Home
+          </Button>
+        </div>
+      )}
+
       {/* Page Header */}
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">Communication Skills Articles</h1>
-        <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-          Learn from expert insights and practical guides to improve your communication abilities
-        </p>
+      <div className="mb-8">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Articles</h1>
             <p className="text-gray-600 mt-2">Discover insights on communication and presentation skills</p>
           </div>
           {isLoggedIn && (
-            <Button onClick={() => setIsCreateModalOpen(true)} className="btn-primary">
-              <i className="fas fa-plus mr-2"></i>
+            <Button 
+              onClick={() => setIsCreateModalOpen(true)} 
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+            >
+              <i className="fas fa-plus"></i>
               Add Article
             </Button>
           )}
@@ -124,12 +248,12 @@ export default function Articles() {
           </div>
         </div>
         <Select value={category} onValueChange={setCategory}>
-          <SelectTrigger className="w-full md:w-64">
+          <SelectTrigger className="w-full md:w-64 bg-white border-gray-300 hover:border-blue-400 focus:border-blue-500">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-white border border-gray-200 shadow-lg">
             {categories.map((cat) => (
-              <SelectItem key={cat} value={cat}>
+              <SelectItem key={cat} value={cat} className="hover:bg-blue-50 focus:bg-blue-50">
                 {cat}
               </SelectItem>
             ))}
@@ -181,7 +305,7 @@ export default function Articles() {
                     </div>
                     <Button 
                       variant="ghost" 
-                      className="text-primary hover:text-blue-700 p-0 h-auto"
+                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-2 h-auto font-medium transition-all duration-200"
                       onClick={() => openArticleModal(article)}
                     >
                       Read More <i className="fas fa-arrow-right ml-1"></i>
@@ -193,10 +317,20 @@ export default function Articles() {
                   <div className="flex justify-end gap-2 mt-2">
                     {isLoggedIn && (
                       <>
-                        <Button size="sm" variant="outline" onClick={() => openArticleModal(article)}>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => openArticleModal(article)}
+                          className="bg-white border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 transition-all duration-200"
+                        >
                           <i className="fas fa-edit mr-1"></i> Edit
                         </Button>
-                        <Button size="sm" variant="destructive" onClick={(e) => handleDeleteClick(article, e)}>
+                        <Button 
+                          size="sm" 
+                          variant="destructive" 
+                          onClick={(e) => handleDeleteClick(article, e)}
+                          className="bg-red-600 hover:bg-red-700 text-white border-red-600 hover:border-red-700 transition-all duration-200"
+                        >
                           <i className="fas fa-trash mr-1"></i> Delete
                         </Button>
                       </>
@@ -209,7 +343,7 @@ export default function Articles() {
 
           {/* Load More Button */}
           <div className="text-center mt-12">
-            <Button className="bg-primary text-white hover:bg-blue-700">
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 font-medium">
               Load More Articles
             </Button>
           </div>
@@ -237,59 +371,126 @@ export default function Articles() {
 
       {/* Article Reading Modal */}
       {selectedArticle && (
-        <Dialog open={isArticleModalOpen} onOpenChange={setIsArticleModalOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <div className={`text-sm font-semibold mb-2 ${getCategoryColor(selectedArticle.category)}`}>
+        <SimpleArticleModal
+          isOpen={isArticleModalOpen}
+          onClose={() => setIsArticleModalOpen(false)}
+        >
+          <div style={{ backgroundColor: '#ffffff' }}>
+            {/* Article Header */}
+            <div style={{ 
+              marginBottom: '24px',
+              backgroundColor: '#ffffff'
+            }}>
+              <div style={{ 
+                display: 'inline-block',
+                padding: '4px 12px',
+                borderRadius: '4px',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                marginBottom: '8px',
+                backgroundColor: '#ffffff'
+              }} className={getCategoryColor(selectedArticle.category)}>
                 {selectedArticle.category.toUpperCase()}
               </div>
-              <DialogTitle className="text-2xl font-bold text-gray-900 text-left">
+              <h2 style={{ 
+                fontSize: '28px', 
+                fontWeight: 'bold', 
+                color: '#111827',
+                margin: '0 0 12px 0',
+                backgroundColor: '#ffffff'
+              }}>
                 {selectedArticle.title}
-              </DialogTitle>
-              <div className="flex items-center justify-between text-sm text-gray-500 pt-2">
-                <div className="flex items-center space-x-4">
-                  <span>By {selectedArticle.author}</span>
-                  <span>•</span>
-                  <span>{formatDate(selectedArticle.publishedAt)}</span>
-                  <span>•</span>
-                  <div className="flex items-center">
-                    <i className="far fa-clock mr-1"></i>
-                    <span>{selectedArticle.readTime} min read</span>
-                  </div>
+              </h2>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '16px',
+                fontSize: '14px',
+                color: '#6b7280',
+                backgroundColor: '#ffffff'
+              }}>
+                <span>By {selectedArticle.author}</span>
+                <span>•</span>
+                <span>{formatDate(selectedArticle.publishedAt)}</span>
+                <span>•</span>
+                <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#ffffff' }}>
+                  <i className="far fa-clock" style={{ marginRight: '4px' }}></i>
+                  <span>{selectedArticle.readTime} min read</span>
                 </div>
               </div>
-            </DialogHeader>
+            </div>
             
-            <div className="space-y-6">
+            {/* Article Content */}
+            <div style={{ backgroundColor: '#ffffff' }}>
               {selectedArticle.imageUrl && (
                 <img
                   src={selectedArticle.imageUrl}
                   alt={selectedArticle.title}
-                  className="w-full h-64 object-cover rounded-lg"
+                  style={{
+                    width: '100%',
+                    height: '256px',
+                    objectFit: 'cover',
+                    borderRadius: '8px',
+                    marginBottom: '24px'
+                  }}
                 />
               )}
               
-              <div className="prose max-w-none">
-                <div className="text-lg text-gray-700 mb-6 font-medium">
+              <div style={{ backgroundColor: '#ffffff' }}>
+                <div style={{ 
+                  fontSize: '18px', 
+                  color: '#374151', 
+                  marginBottom: '24px', 
+                  fontWeight: '500',
+                  backgroundColor: '#ffffff'
+                }}>
                   {selectedArticle.excerpt}
                 </div>
                 
-                <div className="text-gray-700 leading-relaxed">
+                <div style={{ 
+                  color: '#374151', 
+                  lineHeight: '1.7',
+                  backgroundColor: '#ffffff'
+                }}>
                   {formatContent(selectedArticle.content)}
                 </div>
               </div>
               
-              <div className="pt-6 border-t border-gray-200">
-                <Button 
+              <div style={{ 
+                paddingTop: '24px', 
+                borderTop: '1px solid #e5e7eb',
+                marginTop: '24px',
+                backgroundColor: '#ffffff'
+              }}>
+                <button 
                   onClick={() => setIsArticleModalOpen(false)}
-                  className="gradient-primary text-white"
+                  style={{
+                    padding: '12px 24px',
+                    border: 'none',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    fontWeight: '500',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)';
+                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)';
+                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+                  }}
                 >
                   Close Article
-                </Button>
+                </button>
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
+          </div>
+        </SimpleArticleModal>
       )}
     </main>
   );

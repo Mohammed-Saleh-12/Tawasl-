@@ -1,4 +1,4 @@
-import { db } from "./db";
+import { db } from "./db-local";
 import { 
   articles, testCategories, testQuestions, faqs,
   type Article, type TestCategory, type TestQuestion, type FAQ

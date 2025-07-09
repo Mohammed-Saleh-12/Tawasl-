@@ -5,7 +5,7 @@ import {
   type TestResult, type InsertTestResult, type FAQ, type InsertFAQ,
   type VideoAnalysis, type InsertVideoAnalysis
 } from "@shared/schema";
-import { db } from "./db";
+import { db } from "./db-local";
 import { eq } from "drizzle-orm";
 
 export interface IStorage {
@@ -18,17 +18,31 @@ export interface IStorage {
   getArticles(search?: string, category?: string): Promise<Article[]>;
   getArticle(id: number): Promise<Article | undefined>;
   createArticle(article: InsertArticle): Promise<Article>;
+  updateArticle(id: number, article: InsertArticle): Promise<Article>;
+  deleteArticle(id: number): Promise<void>;
   
   // Test methods
   getTestCategories(): Promise<TestCategory[]>;
   getTestCategory(id: number): Promise<TestCategory | undefined>;
+  createTestCategory(category: InsertTestCategory): Promise<TestCategory>;
+  updateTestCategory(id: number, category: InsertTestCategory): Promise<TestCategory>;
+  deleteTestCategory(id: number): Promise<void>;
   getTestQuestions(categoryId: number): Promise<TestQuestion[]>;
+  getAllTestQuestions(): Promise<TestQuestion[]>;
+  getTestQuestion(id: number): Promise<TestQuestion | undefined>;
+  createTestQuestion(question: InsertTestQuestion): Promise<TestQuestion>;
+  updateTestQuestion(id: number, question: InsertTestQuestion): Promise<TestQuestion>;
+  deleteTestQuestion(id: number): Promise<void>;
   createTestResult(result: InsertTestResult): Promise<TestResult>;
+  deleteTestResult(id: number): Promise<void>;
   getUserTestResults(userId?: number): Promise<TestResult[]>;
   
   // FAQ methods
   getFAQs(search?: string, category?: string): Promise<FAQ[]>;
+  getFAQ(id: number): Promise<FAQ | undefined>;
   createFAQ(faq: InsertFAQ): Promise<FAQ>;
+  updateFAQ(id: number, faq: InsertFAQ): Promise<FAQ>;
+  deleteFAQ(id: number): Promise<void>;
   
   // Video analysis methods
   createVideoAnalysis(analysis: InsertVideoAnalysis): Promise<VideoAnalysis>;
@@ -715,6 +729,44 @@ Remember, difficult conversations are opportunities to build stronger relationsh
     sampleFAQs.forEach(faq => {
       this.faqs.set(faq.id, faq);
     });
+
+    // Seed sample test results
+    const sampleTestResults: TestResult[] = [
+      {
+        id: this.currentId++,
+        userId: null,
+        categoryId: 6, // Verbal Communication
+        score: 4,
+        totalQuestions: 5,
+        answers: { "0": "A", "1": "B", "2": "A", "3": "C", "4": "B" },
+        feedback: "Good job! You have a solid foundation in communication skills. Focus on the areas where you missed questions.",
+        completedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) // 2 days ago
+      },
+      {
+        id: this.currentId++,
+        userId: null,
+        categoryId: 7, // Non-Verbal Communication
+        score: 3,
+        totalQuestions: 5,
+        answers: { "0": "B", "1": "A", "2": "C", "3": "A", "4": "B" },
+        feedback: "Fair performance. You understand the basics but should review key concepts and practice more.",
+        completedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) // 5 days ago
+      },
+      {
+        id: this.currentId++,
+        userId: null,
+        categoryId: 8, // Digital Communication
+        score: 5,
+        totalQuestions: 5,
+        answers: { "0": "A", "1": "B", "2": "A", "3": "C", "4": "A" },
+        feedback: "Excellent work! You have a strong understanding of digital communication skills. Keep practicing to maintain this level.",
+        completedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) // 1 day ago
+      }
+    ];
+
+    sampleTestResults.forEach(result => {
+      this.testResults.set(result.id, result);
+    });
   }
 
   async getUser(id: number): Promise<User | undefined> {
@@ -766,6 +818,18 @@ Remember, difficult conversations are opportunities to build stronger relationsh
     return article;
   }
 
+  async updateArticle(id: number, insertArticle: InsertArticle): Promise<Article> {
+    const article = await this.getArticle(id);
+    if (!article) throw new Error("Article not found");
+    const updatedArticle: Article = { ...article, ...insertArticle };
+    this.articles.set(id, updatedArticle);
+    return updatedArticle;
+  }
+
+  async deleteArticle(id: number): Promise<void> {
+    this.articles.delete(id);
+  }
+
   async getTestCategories(): Promise<TestCategory[]> {
     return Array.from(this.testCategories.values());
   }
@@ -774,10 +838,56 @@ Remember, difficult conversations are opportunities to build stronger relationsh
     return this.testCategories.get(id);
   }
 
+  async createTestCategory(insertCategory: InsertTestCategory): Promise<TestCategory> {
+    const id = this.currentId++;
+    const category: TestCategory = { ...insertCategory, id };
+    this.testCategories.set(id, category);
+    return category;
+  }
+
+  async updateTestCategory(id: number, insertCategory: InsertTestCategory): Promise<TestCategory> {
+    const category = await this.getTestCategory(id);
+    if (!category) throw new Error("Category not found");
+    const updatedCategory: TestCategory = { ...category, ...insertCategory };
+    this.testCategories.set(id, updatedCategory);
+    return updatedCategory;
+  }
+
+  async deleteTestCategory(id: number): Promise<void> {
+    this.testCategories.delete(id);
+  }
+
   async getTestQuestions(categoryId: number): Promise<TestQuestion[]> {
     return Array.from(this.testQuestions.values()).filter(
       question => question.categoryId === categoryId
     );
+  }
+
+  async getAllTestQuestions(): Promise<TestQuestion[]> {
+    return Array.from(this.testQuestions.values());
+  }
+
+  async getTestQuestion(id: number): Promise<TestQuestion | undefined> {
+    return this.testQuestions.get(id);
+  }
+
+  async createTestQuestion(insertQuestion: InsertTestQuestion): Promise<TestQuestion> {
+    const id = this.currentId++;
+    const question: TestQuestion = { ...insertQuestion, id };
+    this.testQuestions.set(id, question);
+    return question;
+  }
+
+  async updateTestQuestion(id: number, insertQuestion: InsertTestQuestion): Promise<TestQuestion> {
+    const question = await this.getTestQuestion(id);
+    if (!question) throw new Error("Question not found");
+    const updatedQuestion: TestQuestion = { ...question, ...insertQuestion };
+    this.testQuestions.set(id, updatedQuestion);
+    return updatedQuestion;
+  }
+
+  async deleteTestQuestion(id: number): Promise<void> {
+    this.testQuestions.delete(id);
   }
 
   async createTestResult(insertResult: InsertTestResult): Promise<TestResult> {
@@ -793,8 +903,16 @@ Remember, difficult conversations are opportunities to build stronger relationsh
     return result;
   }
 
+  async deleteTestResult(id: number): Promise<void> {
+    this.testResults.delete(id);
+  }
+
   async getUserTestResults(userId?: number): Promise<TestResult[]> {
-    if (!userId) return [];
+    if (!userId) {
+      // If no userId is provided, return all test results
+      return Array.from(this.testResults.values())
+        .sort((a, b) => b.completedAt.getTime() - a.completedAt.getTime());
+    }
     return Array.from(this.testResults.values())
       .filter(result => result.userId === userId)
       .sort((a, b) => b.completedAt.getTime() - a.completedAt.getTime());
@@ -817,11 +935,27 @@ Remember, difficult conversations are opportunities to build stronger relationsh
     return faqs;
   }
 
+  async getFAQ(id: number): Promise<FAQ | undefined> {
+    return this.faqs.get(id);
+  }
+
   async createFAQ(insertFAQ: InsertFAQ): Promise<FAQ> {
     const id = this.currentId++;
     const faq: FAQ = { ...insertFAQ, id };
     this.faqs.set(id, faq);
     return faq;
+  }
+
+  async updateFAQ(id: number, insertFAQ: InsertFAQ): Promise<FAQ> {
+    const faq = await this.getFAQ(id);
+    if (!faq) throw new Error("FAQ not found");
+    const updatedFAQ: FAQ = { ...faq, ...insertFAQ };
+    this.faqs.set(id, updatedFAQ);
+    return updatedFAQ;
+  }
+
+  async deleteFAQ(id: number): Promise<void> {
+    this.faqs.delete(id);
   }
 
   async createVideoAnalysis(insertAnalysis: InsertVideoAnalysis): Promise<VideoAnalysis> {
@@ -910,6 +1044,19 @@ export class DatabaseStorage implements IStorage {
     return article;
   }
 
+  async updateArticle(id: number, insertArticle: InsertArticle): Promise<Article> {
+    const [article] = await db
+      .update(articles)
+      .set(insertArticle)
+      .where(eq(articles.id, id))
+      .returning();
+    return article;
+  }
+
+  async deleteArticle(id: number): Promise<void> {
+    await db.delete(articles).where(eq(articles.id, id));
+  }
+
   async getTestCategories(): Promise<TestCategory[]> {
     return await db.select().from(testCategories);
   }
@@ -919,8 +1066,59 @@ export class DatabaseStorage implements IStorage {
     return category || undefined;
   }
 
+  async createTestCategory(insertCategory: InsertTestCategory): Promise<TestCategory> {
+    const [category] = await db
+      .insert(testCategories)
+      .values(insertCategory)
+      .returning();
+    return category;
+  }
+
+  async updateTestCategory(id: number, insertCategory: InsertTestCategory): Promise<TestCategory> {
+    const [category] = await db
+      .update(testCategories)
+      .set(insertCategory)
+      .where(eq(testCategories.id, id))
+      .returning();
+    return category;
+  }
+
+  async deleteTestCategory(id: number): Promise<void> {
+    await db.delete(testCategories).where(eq(testCategories.id, id));
+  }
+
   async getTestQuestions(categoryId: number): Promise<TestQuestion[]> {
     return await db.select().from(testQuestions).where(eq(testQuestions.categoryId, categoryId));
+  }
+
+  async getAllTestQuestions(): Promise<TestQuestion[]> {
+    return await db.select().from(testQuestions);
+  }
+
+  async getTestQuestion(id: number): Promise<TestQuestion | undefined> {
+    const [question] = await db.select().from(testQuestions).where(eq(testQuestions.id, id));
+    return question || undefined;
+  }
+
+  async createTestQuestion(insertQuestion: InsertTestQuestion): Promise<TestQuestion> {
+    const [question] = await db
+      .insert(testQuestions)
+      .values(insertQuestion)
+      .returning();
+    return question;
+  }
+
+  async updateTestQuestion(id: number, insertQuestion: InsertTestQuestion): Promise<TestQuestion> {
+    const [question] = await db
+      .update(testQuestions)
+      .set(insertQuestion)
+      .where(eq(testQuestions.id, id))
+      .returning();
+    return question;
+  }
+
+  async deleteTestQuestion(id: number): Promise<void> {
+    await db.delete(testQuestions).where(eq(testQuestions.id, id));
   }
 
   async createTestResult(insertResult: InsertTestResult): Promise<TestResult> {
@@ -936,9 +1134,16 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
+  async deleteTestResult(id: number): Promise<void> {
+    await db.delete(testResults).where(eq(testResults.id, id));
+  }
+
   async getUserTestResults(userId?: number): Promise<TestResult[]> {
-    if (!userId) return [];
-    
+    if (!userId) {
+      // If no userId is provided, return all test results
+      const results = await db.select().from(testResults);
+      return results.sort((a, b) => b.completedAt.getTime() - a.completedAt.getTime());
+    }
     const results = await db.select().from(testResults).where(eq(testResults.userId, userId));
     return results.sort((a, b) => b.completedAt.getTime() - a.completedAt.getTime());
   }
@@ -962,12 +1167,30 @@ export class DatabaseStorage implements IStorage {
     return filteredFAQs;
   }
 
+  async getFAQ(id: number): Promise<FAQ | undefined> {
+    const [faq] = await db.select().from(faqs).where(eq(faqs.id, id));
+    return faq || undefined;
+  }
+
   async createFAQ(insertFAQ: InsertFAQ): Promise<FAQ> {
     const [faq] = await db
       .insert(faqs)
       .values(insertFAQ)
       .returning();
     return faq;
+  }
+
+  async updateFAQ(id: number, insertFAQ: InsertFAQ): Promise<FAQ> {
+    const [faq] = await db
+      .update(faqs)
+      .set(insertFAQ)
+      .where(eq(faqs.id, id))
+      .returning();
+    return faq;
+  }
+
+  async deleteFAQ(id: number): Promise<void> {
+    await db.delete(faqs).where(eq(faqs.id, id));
   }
 
   async createVideoAnalysis(insertAnalysis: InsertVideoAnalysis): Promise<VideoAnalysis> {
@@ -1000,5 +1223,271 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-// Use database storage for production, but keep memory storage available for development
-export const storage = process.env.NODE_ENV === 'development' ? new DatabaseStorage() : new DatabaseStorage();
+// Create a wrapper class that falls back to memory storage if database fails
+class FallbackStorage implements IStorage {
+  private dbStorage: DatabaseStorage;
+  private memStorage: MemStorage;
+  private useMemory: boolean = false;
+
+  constructor() {
+    this.dbStorage = new DatabaseStorage();
+    this.memStorage = new MemStorage();
+  }
+
+  private async executeWithFallback<T>(dbOperation: () => Promise<T>): Promise<T> {
+    if (this.useMemory) {
+      throw new Error("Using memory storage");
+    }
+    
+    try {
+      return await dbOperation();
+    } catch (error) {
+      console.log("⚠️  Database operation failed, switching to memory storage");
+      this.useMemory = true;
+      throw error;
+    }
+  }
+
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.getUser(id));
+    } catch {
+      return this.memStorage.getUser(id);
+    }
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.getUserByUsername(username));
+    } catch {
+      return this.memStorage.getUserByUsername(username);
+    }
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.createUser(user));
+    } catch {
+      return this.memStorage.createUser(user);
+    }
+  }
+
+  // Article methods
+  async getArticles(search?: string, category?: string): Promise<Article[]> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.getArticles(search, category));
+    } catch {
+      return this.memStorage.getArticles(search, category);
+    }
+  }
+
+  async getArticle(id: number): Promise<Article | undefined> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.getArticle(id));
+    } catch {
+      return this.memStorage.getArticle(id);
+    }
+  }
+
+  async createArticle(article: InsertArticle): Promise<Article> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.createArticle(article));
+    } catch {
+      return this.memStorage.createArticle(article);
+    }
+  }
+
+  async updateArticle(id: number, article: InsertArticle): Promise<Article> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.updateArticle(id, article));
+    } catch {
+      return this.memStorage.updateArticle(id, article);
+    }
+  }
+
+  async deleteArticle(id: number): Promise<void> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.deleteArticle(id));
+    } catch {
+      return this.memStorage.deleteArticle(id);
+    }
+  }
+
+  // Test methods
+  async getTestCategories(): Promise<TestCategory[]> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.getTestCategories());
+    } catch {
+      return this.memStorage.getTestCategories();
+    }
+  }
+
+  async getTestCategory(id: number): Promise<TestCategory | undefined> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.getTestCategory(id));
+    } catch {
+      return this.memStorage.getTestCategory(id);
+    }
+  }
+
+  async createTestCategory(category: InsertTestCategory): Promise<TestCategory> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.createTestCategory(category));
+    } catch {
+      return this.memStorage.createTestCategory(category);
+    }
+  }
+
+  async updateTestCategory(id: number, category: InsertTestCategory): Promise<TestCategory> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.updateTestCategory(id, category));
+    } catch {
+      return this.memStorage.updateTestCategory(id, category);
+    }
+  }
+
+  async deleteTestCategory(id: number): Promise<void> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.deleteTestCategory(id));
+    } catch {
+      return this.memStorage.deleteTestCategory(id);
+    }
+  }
+
+  async getTestQuestions(categoryId: number): Promise<TestQuestion[]> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.getTestQuestions(categoryId));
+    } catch {
+      return this.memStorage.getTestQuestions(categoryId);
+    }
+  }
+
+  async getAllTestQuestions(): Promise<TestQuestion[]> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.getAllTestQuestions());
+    } catch {
+      return this.memStorage.getAllTestQuestions();
+    }
+  }
+
+  async getTestQuestion(id: number): Promise<TestQuestion | undefined> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.getTestQuestion(id));
+    } catch {
+      return this.memStorage.getTestQuestion(id);
+    }
+  }
+
+  async createTestQuestion(question: InsertTestQuestion): Promise<TestQuestion> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.createTestQuestion(question));
+    } catch {
+      return this.memStorage.createTestQuestion(question);
+    }
+  }
+
+  async updateTestQuestion(id: number, question: InsertTestQuestion): Promise<TestQuestion> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.updateTestQuestion(id, question));
+    } catch {
+      return this.memStorage.updateTestQuestion(id, question);
+    }
+  }
+
+  async deleteTestQuestion(id: number): Promise<void> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.deleteTestQuestion(id));
+    } catch {
+      return this.memStorage.deleteTestQuestion(id);
+    }
+  }
+
+  async createTestResult(result: InsertTestResult): Promise<TestResult> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.createTestResult(result));
+    } catch {
+      return this.memStorage.createTestResult(result);
+    }
+  }
+
+  async deleteTestResult(id: number): Promise<void> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.deleteTestResult(id));
+    } catch {
+      return this.memStorage.deleteTestResult(id);
+    }
+  }
+
+  async getUserTestResults(userId?: number): Promise<TestResult[]> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.getUserTestResults(userId));
+    } catch {
+      return this.memStorage.getUserTestResults(userId);
+    }
+  }
+
+  // FAQ methods
+  async getFAQs(search?: string, category?: string): Promise<FAQ[]> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.getFAQs(search, category));
+    } catch {
+      return this.memStorage.getFAQs(search, category);
+    }
+  }
+
+  async getFAQ(id: number): Promise<FAQ | undefined> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.getFAQ(id));
+    } catch {
+      return this.memStorage.getFAQ(id);
+    }
+  }
+
+  async createFAQ(faq: InsertFAQ): Promise<FAQ> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.createFAQ(faq));
+    } catch {
+      return this.memStorage.createFAQ(faq);
+    }
+  }
+
+  async updateFAQ(id: number, faq: InsertFAQ): Promise<FAQ> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.updateFAQ(id, faq));
+    } catch {
+      return this.memStorage.updateFAQ(id, faq);
+    }
+  }
+
+  async deleteFAQ(id: number): Promise<void> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.deleteFAQ(id));
+    } catch {
+      return this.memStorage.deleteFAQ(id);
+    }
+  }
+
+  // Video analysis methods
+  async createVideoAnalysis(analysis: InsertVideoAnalysis): Promise<VideoAnalysis> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.createVideoAnalysis(analysis));
+    } catch {
+      return this.memStorage.createVideoAnalysis(analysis);
+    }
+  }
+
+  async getUserVideoAnalyses(userId?: number): Promise<VideoAnalysis[]> {
+    try {
+      return await this.executeWithFallback(() => this.dbStorage.getUserVideoAnalyses(userId));
+    } catch {
+      return this.memStorage.getUserVideoAnalyses(userId);
+    }
+  }
+}
+
+// Use database storage only - no fallback to memory
+const storage = new DatabaseStorage();
+console.log("✅ Using database storage only");
+
+export { storage };

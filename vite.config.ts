@@ -24,14 +24,22 @@ export default defineConfig({
     },
   },
   root: path.resolve(import.meta.dirname, "client"),
-  build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
-    emptyOutDir: true,
-  },
+  // Remove or comment out the build property to avoid conflicting build outputs
+  // build: {
+  //   outDir: path.resolve(import.meta.dirname, "dist/public"),
+  //   emptyOutDir: true,
+  // },
   server: {
     fs: {
       strict: true,
       deny: ["**/.*"],
+    },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 });

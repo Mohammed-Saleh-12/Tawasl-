@@ -1,7 +1,7 @@
-const { Pool } = require('pg');
+import { Pool } from 'pg';
 
 const pool = new Pool({
-  connectionString: 'postgresql://postgres:postgres@localhost:5432/tawasl',
+  connectionString: 'postgresql://tawasl_user:tawasl_password@localhost:5433/tawasl',
   ssl: false
 });
 

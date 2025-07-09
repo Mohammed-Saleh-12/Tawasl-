@@ -3,49 +3,49 @@
 @tailwind utilities;
 
 :root {
-  --background: hsl(0, 0%, 100%);
-  --foreground: hsl(20, 14.3%, 4.1%);
-  --muted: hsl(60, 4.8%, 95.9%);
-  --muted-foreground: hsl(25, 5.3%, 44.7%);
+  --background: hsl(220, 20%, 98%);
+  --foreground: hsl(220, 15%, 10%);
+  --muted: hsl(220, 16%, 92%);
+  --muted-foreground: hsl(220, 10%, 40%);
   --popover: hsl(0, 0%, 100%);
-  --popover-foreground: hsl(20, 14.3%, 4.1%);
+  --popover-foreground: hsl(220, 15%, 10%);
   --card: hsl(0, 0%, 100%);
-  --card-foreground: hsl(20, 14.3%, 4.1%);
-  --border: hsl(20, 5.9%, 90%);
-  --input: hsl(20, 5.9%, 90%);
-  --primary: hsl(207, 90%, 54%);
+  --card-foreground: hsl(220, 15%, 10%);
+  --border: hsl(220, 14%, 85%);
+  --input: hsl(220, 14%, 85%);
+  --primary: hsl(217, 91%, 60%);
   --primary-foreground: hsl(211, 100%, 99%);
-  --secondary: hsl(258, 70%, 62%);
+  --secondary: hsl(265, 80%, 68%);
   --secondary-foreground: hsl(211, 100%, 99%);
-  --accent: hsl(160, 64%, 40%);
+  --accent: hsl(160, 70%, 50%);
   --accent-foreground: hsl(211, 100%, 99%);
   --destructive: hsl(0, 84.2%, 60.2%);
   --destructive-foreground: hsl(60, 9.1%, 97.8%);
-  --ring: hsl(20, 14.3%, 4.1%);
-  --radius: 0.5rem;
+  --ring: hsl(217, 91%, 60%);
+  --radius: 0.75rem;
 }
 
 .dark {
-  --background: hsl(240, 10%, 3.9%);
+  --background: hsl(220, 15%, 8%);
   --foreground: hsl(0, 0%, 98%);
-  --muted: hsl(240, 3.7%, 15.9%);
-  --muted-foreground: hsl(240, 5%, 64.9%);
-  --popover: hsl(240, 10%, 3.9%);
+  --muted: hsl(220, 10%, 18%);
+  --muted-foreground: hsl(220, 10%, 60%);
+  --popover: hsl(220, 15%, 8%);
   --popover-foreground: hsl(0, 0%, 98%);
-  --card: hsl(240, 10%, 3.9%);
+  --card: hsl(220, 15%, 8%);
   --card-foreground: hsl(0, 0%, 98%);
-  --border: hsl(240, 3.7%, 15.9%);
-  --input: hsl(240, 3.7%, 15.9%);
-  --primary: hsl(207, 90%, 54%);
+  --border: hsl(220, 10%, 18%);
+  --input: hsl(220, 10%, 18%);
+  --primary: hsl(217, 91%, 60%);
   --primary-foreground: hsl(211, 100%, 99%);
-  --secondary: hsl(258, 70%, 62%);
+  --secondary: hsl(265, 80%, 68%);
   --secondary-foreground: hsl(211, 100%, 99%);
-  --accent: hsl(160, 64%, 40%);
+  --accent: hsl(160, 70%, 50%);
   --accent-foreground: hsl(211, 100%, 99%);
   --destructive: hsl(0, 62.8%, 30.6%);
   --destructive-foreground: hsl(0, 0%, 98%);
-  --ring: hsl(240, 4.9%, 83.9%);
-  --radius: 0.5rem;
+  --ring: hsl(217, 91%, 60%);
+  --radius: 0.75rem;
 }
 
 @layer base {
@@ -74,11 +74,11 @@
 
 /* Gradient backgrounds */
 .gradient-primary {
-  background: linear-gradient(135deg, hsl(207, 90%, 54%) 0%, hsl(258, 70%, 62%) 100%);
+  background: linear-gradient(135deg, hsl(217, 91%, 60%) 0%, hsl(265, 80%, 68%) 100%);
 }
 
 .gradient-secondary {
-  background: linear-gradient(135deg, hsl(258, 70%, 62%) 0%, hsl(207, 90%, 54%) 100%);
+  background: linear-gradient(135deg, hsl(265, 80%, 68%) 0%, hsl(217, 91%, 60%) 100%);
 }
 
 /* Custom scrollbar */
@@ -118,10 +118,31 @@
 
 /* Improved card hover effects */
 .card-hover {
-  @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+  @apply transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 hover:scale-105;
 }
 
 /* Header height fix */
 .h-18 {
   height: 4.5rem;
+}
+
+/* Section backgrounds for intro */
+.section-intro {
+  @apply bg-gradient-to-r from-blue-50 via-white to-blue-50 rounded-xl shadow p-8;
+}
+
+/* Improved spacing for main containers */
+.main-container {
+  @apply max-w-5xl mx-auto px-4 py-16;
+}
+
+/* Improved focus ring for accessibility */
+:focus-visible {
+  outline: 2px solid hsl(207, 90%, 54%);
+  outline-offset: 2px;
+}
+
+/* Subtle shadow for feature cards */
+.feature-card {
+  @apply shadow-lg hover:shadow-2xl transition-shadow duration-300;
 }

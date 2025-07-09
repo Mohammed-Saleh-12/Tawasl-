@@ -1,31 +1,39 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
+import FAQFormModal from "@/components/faq-form-modal";
+import { apiClient } from "@/lib/api";
 import type { FAQ } from "@shared/schema";
 
 export default function FAQ() {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Topics");
   const [openItems, setOpenItems] = useState<Set<number>>(new Set());
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedFAQ, setSelectedFAQ] = useState<FAQ | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [, setLocation] = useLocation();
 
   const isLoggedIn = typeof window !== 'undefined' && localStorage.getItem('platform_logged_in') === 'true';
 
-  const { data: faqs, isLoading } = useQuery<FAQ[]>({
+  const { data: faqsData, isLoading } = useQuery({
     queryKey: ["/api/faqs", search, selectedCategory],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (search) params.append("search", search);
       if (selectedCategory !== "All Topics") params.append("category", selectedCategory);
       
-      const response = await fetch(`/api/faqs?${params}`);
-      if (!response.ok) throw new Error("Failed to fetch FAQs");
-      return response.json();
+      const response = await apiClient.get(`/faqs?${params}`);
+      return response.faqs || response;
     }
   });
+
+  const faqs = Array.isArray(faqsData) ? faqsData : (faqsData?.faqs || []);
 
   const categories = [
     "All Topics",
@@ -47,14 +55,55 @@ export default function FAQ() {
     setOpenItems(newOpenItems);
   };
 
+  const handleEdit = (faq: FAQ) => {
+    setSelectedFAQ(faq);
+    setIsEditModalOpen(true);
+  };
+
+  const handleDeleteClick = async (faq: FAQ, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm(`Are you sure you want to delete "${faq.question}"?`)) {
+      try {
+        await apiClient.delete(`/faqs/${faq.id}`);
+        // Refresh the FAQs list
+        window.location.reload();
+      } catch (error) {
+        console.error('Error deleting FAQ:', error);
+        alert('Error deleting FAQ');
+      }
+    }
+  };
+
   return (
     <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      {/* Back to Home Button for Logged-in Users */}
+      {isLoggedIn && (
+        <div className="mb-6">
+          <Button 
+            onClick={() => setLocation('/')}
+            variant="outline"
+            className="flex items-center gap-2 hover:bg-blue-50 hover:border-blue-300 transition-all duration-200"
+          >
+            <i className="fas fa-arrow-left"></i>
+            Back to Home
+          </Button>
+        </div>
+      )}
+
       {/* Page Header */}
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold text-gray-900 mb-4">Frequently Asked Questions</h1>
         <p className="text-xl text-gray-600">
           Find answers to common questions about communication skills and our platform
         </p>
+        {isLoggedIn && (
+          <div className="mt-6">
+            <Button onClick={() => setIsCreateModalOpen(true)} className="btn-primary">
+              <i className="fas fa-plus mr-2"></i>
+              Add FAQ
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Search */}
@@ -73,14 +122,18 @@ export default function FAQ() {
 
       {/* FAQ Categories */}
       <div className="mb-8">
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap gap-3">
           {categories.map((category) => (
             <Button
               key={category}
-              variant={selectedCategory === category ? "default" : "secondary"}
+              variant={selectedCategory === category ? "default" : "outline"}
               size="sm"
               onClick={() => setSelectedCategory(category)}
-              className={selectedCategory === category ? "bg-primary text-white" : ""}
+              className={`px-6 py-2.5 rounded-xl font-semibold transition-all duration-200 ${
+                selectedCategory === category 
+                  ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl hover:scale-105" 
+                  : "border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 text-gray-700 hover:text-blue-700 hover:scale-105"
+              }`}
             >
               {category}
             </Button>
@@ -113,11 +166,21 @@ export default function FAQ() {
                   <div className="flex items-center gap-2">
                     {isLoggedIn && (
                       <>
-                        <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); handleEdit(faq); }}>
-                          <i className="fas fa-edit text-gray-500"></i>
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          onClick={(e) => { e.stopPropagation(); handleEdit(faq); }}
+                          className="w-10 h-10 rounded-xl hover:bg-blue-100 hover:text-blue-600 transition-all duration-200 hover:scale-110"
+                        >
+                          <i className="fas fa-edit text-gray-500 hover:text-blue-600"></i>
                         </Button>
-                        <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); handleDelete(faq); }}>
-                          <i className="fas fa-trash text-red-500"></i>
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          onClick={(e) => { e.stopPropagation(); handleDeleteClick(faq, e); }}
+                          className="w-10 h-10 rounded-xl hover:bg-red-100 hover:text-red-600 transition-all duration-200 hover:scale-110"
+                        >
+                          <i className="fas fa-trash text-red-500 hover:text-red-600"></i>
                         </Button>
                       </>
                     )}
@@ -151,14 +214,29 @@ export default function FAQ() {
       )}
 
       {/* Contact Support */}
-      <div className="mt-12 text-center bg-gray-100 rounded-xl p-8">
-        <h3 className="text-xl font-bold text-gray-900 mb-4">Still have questions?</h3>
-        <p className="text-gray-600 mb-6">Our support team is here to help you make the most of your communication skills journey.</p>
-        <Button className="bg-primary text-white hover:bg-blue-700">
-          <i className="fas fa-envelope mr-2"></i>
+      <div className="mt-12 text-center bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-8 border border-blue-100">
+        <h3 className="text-2xl font-bold text-gray-900 mb-4">Still have questions?</h3>
+        <p className="text-gray-600 mb-6 text-lg">Our support team is here to help you make the most of your communication skills journey.</p>
+        <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 flex items-center gap-3">
+          <i className="fas fa-envelope text-lg"></i>
           Contact Support
         </Button>
       </div>
+
+      {/* FAQ Creation Modal */}
+      <FAQFormModal 
+        isOpen={isCreateModalOpen} 
+        onOpenChange={setIsCreateModalOpen} 
+      />
+
+      {/* FAQ Edit Modal */}
+      {selectedFAQ && (
+        <FAQFormModal 
+          isOpen={isEditModalOpen} 
+          onOpenChange={setIsEditModalOpen}
+          faq={selectedFAQ}
+        />
+      )}
     </main>
   );
 }

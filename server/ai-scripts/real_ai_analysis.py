@@ -38,13 +38,7 @@ class RealVideoAnalyzer:
         self.mp_face = mp.solutions.face_mesh
         self.mp_hands = mp.solutions.hands
         self.mp_pose = mp.solutions.pose
-        self.face_mesh = self.mp_face.FaceMesh(
-            static_image_mode=False,
-            max_num_faces=2,
-            refine_landmarks=True,
-            min_detection_confidence=0.3,
-            min_tracking_confidence=0.3
-        )
+        self.face_mesh = self.mp_face.FaceMesh(static_image_mode=False, max_num_faces=2)
         self.hands = self.mp_hands.Hands(static_image_mode=False, max_num_hands=2)
         self.pose = self.mp_pose.Pose(static_image_mode=False)
         self.no_face_frames = 0
@@ -73,30 +67,16 @@ class RealVideoAnalyzer:
                 cap = cv2.VideoCapture(video_path)
                 fps = cap.get(cv2.CAP_PROP_FPS) or 30
                 total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                sample_frames = min(100, max(20, total_frames // 5))
-                frames_read = 0
+                sample_frames = min(50, max(10, total_frames // 10))
                 for i in range(sample_frames):
                     frame_idx = int(i * total_frames / sample_frames)
                     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
                     ret, frame = cap.read()
                     if not ret:
                         continue
-                    frames_read += 1
                     frame_time = (i / sample_frames) * duration
                     self.analyze_frame_realistic(frame_time, duration, scenario, frame)
                 cap.release()
-                print(f"[DEBUG] Total frames: {total_frames}, Sampled: {sample_frames}, Frames read: {frames_read}, Faces detected: {self.face_detected_frames}", file=sys.stderr)
-                if frames_read == 0:
-                    return {
-                        "overallScore": 0,
-                        "eyeContactScore": 0,
-                        "facialExpressionScore": 0,
-                        "gestureScore": 0,
-                        "postureScore": 0,
-                        "feedback": ["Could not read any frames from the video. Please upload a valid video file."],
-                        "confidence": 0.0,
-                        "analysisDetails": {}
-                    }
             else:
                 # Enhanced analysis based on duration and scenario
                 self.analyze_video_enhanced(duration, scenario)
@@ -294,25 +274,11 @@ class RealVideoAnalyzer:
     
     def analyze_video_enhanced(self, duration: float, scenario: str):
         """Enhanced analysis when video file is not available"""
-        # Generate realistic scores based on duration and scenario
-        base_score = min(100, 60 + (duration / 60) * 20)
-        
-        # Apply scenario-specific adjustments
-        scenario_multiplier = self.get_scenario_multiplier(scenario)
-        adjusted_base_score = base_score * scenario_multiplier
-        
-        # Generate individual scores with realistic variations
-        overall_score = int(adjusted_base_score)
-        eye_contact_score = int(max(0, min(100, overall_score + (random.random() - 0.5) * 20)))
-        facial_expression_score = int(max(0, min(100, overall_score + (random.random() - 0.5) * 15)))
-        gesture_score = int(max(0, min(100, overall_score + (random.random() - 0.5) * 25)))
-        posture_score = int(max(0, min(100, overall_score + (random.random() - 0.5) * 10)))
-        
-        # Store data
-        self.eye_contact_data.append(eye_contact_score)
-        self.facial_expression_data.append(facial_expression_score)
-        self.gesture_data.append(gesture_score)
-        self.posture_data.append(posture_score)
+        # If we cannot analyze, set all scores to zero
+        self.eye_contact_data.append(0)
+        self.facial_expression_data.append(0)
+        self.gesture_data.append(0)
+        self.posture_data.append(0)
     
     def calculate_scores(self, scenario: str, duration: float) -> Dict[str, Any]:
         """Calculate final analysis scores with error handling"""
@@ -357,10 +323,10 @@ class RealVideoAnalyzer:
             hand_rate = self.hand_detected_frames / self.total_frames if self.total_frames else 0
             posture_rate = self.good_posture_frames / self.total_frames if self.total_frames else 0
             # Log detection rates
-            print(f"[AI Analysis] Face visible: {face_rate:.2f}, Eye contact: {eye_rate:.2f}, Hands: {hand_rate:.2f}, Posture: {posture_rate:.2f}", file=sys.stderr)
+            print(f"[AI Analysis] Face visible: {face_rate:.2f}, Eye contact: {eye_rate:.2f}, Hands: {hand_rate:.2f}, Posture: {posture_rate:.2f}")
             
             # If no face detected in most frames, force all scores to zero and feedback to only the warning
-            if face_rate < 0.05:
+            if face_rate < 0.2:
                 feedback = ["No face detected in most of the video. Please ensure your face is clearly visible to the camera."]
                 return {
                     "overallScore": 0,
@@ -536,108 +502,16 @@ class RealVideoAnalyzer:
     
     def generate_enhanced_mock_analysis(self, scenario: str, duration: float) -> Dict[str, Any]:
         """Enhanced mock analysis when video processing fails"""
-        try:
-            # Generate realistic scores based on duration and scenario
-            base_score = min(100, 60 + (duration / 60) * 20)
-            
-            # Apply scenario-specific adjustments
-            scenario_multiplier = self.get_scenario_multiplier(scenario)
-            adjusted_base_score = base_score * scenario_multiplier
-            
-            # Generate individual scores with realistic variations
-            overall_score = int(adjusted_base_score)
-            eye_contact_score = int(max(0, min(100, overall_score + (random.random() - 0.5) * 20)))
-            facial_expression_score = int(max(0, min(100, overall_score + (random.random() - 0.5) * 15)))
-            gesture_score = int(max(0, min(100, overall_score + (random.random() - 0.5) * 25)))
-            posture_score = int(max(0, min(100, overall_score + (random.random() - 0.5) * 10)))
-
-            return {
-                "overallScore": max(0, min(100, overall_score)),
-                "eyeContactScore": eye_contact_score,
-                "facialExpressionScore": facial_expression_score,
-                "gestureScore": gesture_score,
-                "postureScore": posture_score,
-                "feedback": self.generate_feedback(overall_score, eye_contact_score, facial_expression_score, gesture_score, posture_score, scenario),
-                "confidence": 0.6,
-                "analysisDetails": {
-                    "eyeContact": {
-                        "percentage": eye_contact_score,
-                        "duration": duration * (eye_contact_score / 100),
-                        "consistency": eye_contact_score
-                    },
-                    "facialExpressions": {
-                        "emotions": { 
-                            "confidence": facial_expression_score, 
-                            "engagement": facial_expression_score,
-                            "enthusiasm": int(facial_expression_score * 0.9)
-                        },
-                        "confidence": facial_expression_score,
-                        "engagement": facial_expression_score
-                    },
-                    "gestures": {
-                        "frequency": gesture_score / 10,
-                        "appropriateness": gesture_score,
-                        "variety": gesture_score / 2
-                    },
-                    "posture": {
-                        "confidence": posture_score,
-                        "stability": posture_score,
-                        "professionalism": posture_score
-                    },
-                    "analysisMethod": "Enhanced Mock Analysis (Fallback)",
-                    "framesAnalyzed": 0,
-                    "emotions": {
-                        "dominant": 'neutral',
-                        "dominant_percent": 0,
-                        "counts": self.emotion_counts
-                    },
-                    "headPose": {
-                        "dominant": 'forward',
-                        "dominant_percent": 0,
-                        "counts": self.head_pose_counts
-                    },
-                    "postureQuality": {
-                        "dominant": 'confident',
-                        "dominant_percent": 0,
-                        "counts": self.posture_quality_counts
-                    }
-                }
-            }
-        except Exception as e:
-            # Ultimate fallback - return basic analysis
-            print(f"Error in mock analysis: {str(e)}", file=sys.stderr)
-            return {
-                "overallScore": 75,
-                "eyeContactScore": 70,
-                "facialExpressionScore": 75,
-                "gestureScore": 65,
-                "postureScore": 80,
-                "feedback": ["Your presentation showed good potential. Keep practicing to improve your skills."],
-                "confidence": 0.5,
-                "analysisDetails": {
-                    "eyeContact": {"percentage": 70, "duration": duration * 0.7, "consistency": 70},
-                    "facialExpressions": {"emotions": {"confidence": 75, "engagement": 75}, "confidence": 75, "engagement": 75},
-                    "gestures": {"frequency": 6.5, "appropriateness": 65, "variety": 32.5},
-                    "posture": {"confidence": 80, "stability": 80, "professionalism": 80},
-                    "analysisMethod": "Basic Fallback Analysis",
-                    "framesAnalyzed": 0,
-                    "emotions": {
-                        "dominant": 'neutral',
-                        "dominant_percent": 0,
-                        "counts": self.emotion_counts
-                    },
-                    "headPose": {
-                        "dominant": 'forward',
-                        "dominant_percent": 0,
-                        "counts": self.head_pose_counts
-                    },
-                    "postureQuality": {
-                        "dominant": 'confident',
-                        "dominant_percent": 0,
-                        "counts": self.posture_quality_counts
-                    }
-                }
-            }
+        return {
+            "overallScore": 0,
+            "eyeContactScore": 0,
+            "facialExpressionScore": 0,
+            "gestureScore": 0,
+            "postureScore": 0,
+            "feedback": ["Analysis failed. No valid video data could be processed. Please ensure your face is clearly visible to the camera and try again."],
+            "confidence": 0.0,
+            "analysisDetails": {}
+        }
     
     def get_scenario_multiplier(self, scenario: str) -> float:
         """Get scenario-specific scoring multiplier"""
@@ -766,36 +640,14 @@ def main():
         print(f"Exception in main: {e}", file=sys.stderr)
         # Ultimate fallback - return basic analysis
         print(json.dumps({
-            "overallScore": 75,
-            "eyeContactScore": 70,
-            "facialExpressionScore": 75,
-            "gestureScore": 65,
-            "postureScore": 80,
-            "feedback": ["Your presentation showed good potential. Keep practicing to improve your skills."],
-            "confidence": 0.5,
-            "analysisDetails": {
-                "eyeContact": {"percentage": 70, "duration": duration * 0.7, "consistency": 70},
-                "facialExpressions": {"emotions": {"confidence": 75, "engagement": 75}, "confidence": 75, "engagement": 75},
-                "gestures": {"frequency": 6.5, "appropriateness": 65, "variety": 32.5},
-                "posture": {"confidence": 80, "stability": 80, "professionalism": 80},
-                "analysisMethod": "Emergency Fallback Analysis",
-                "framesAnalyzed": 0,
-                "emotions": {
-                    "dominant": 'neutral',
-                    "dominant_percent": 0,
-                    "counts": {'happy': 0, 'neutral': 0, 'surprised': 0}
-                },
-                "headPose": {
-                    "dominant": 'forward',
-                    "dominant_percent": 0,
-                    "counts": {'forward': 0, 'left': 0, 'right': 0, 'up': 0, 'down': 0}
-                },
-                "postureQuality": {
-                    "dominant": 'confident',
-                    "dominant_percent": 0,
-                    "counts": {'confident': 0, 'slouching': 0, 'leaning_left': 0, 'leaning_right': 0, 'arms_crossed': 0}
-                }
-            }
+            "overallScore": 0,
+            "eyeContactScore": 0,
+            "facialExpressionScore": 0,
+            "gestureScore": 0,
+            "postureScore": 0,
+            "feedback": ["Analysis failed. No valid video data could be processed. Please ensure your face is clearly visible to the camera and try again."],
+            "confidence": 0.0,
+            "analysisDetails": {}
         }))
 
 if __name__ == "__main__":

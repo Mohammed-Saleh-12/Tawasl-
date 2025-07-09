@@ -2,27 +2,21 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import AIChatModal from "@/components/ai-chat-modal";
+import { useAuth } from "@/lib/auth";
 
 export default function Header() {
   const [location] = useLocation();
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const isLoggedIn = typeof window !== 'undefined' && localStorage.getItem('platform_logged_in') === 'true';
 
-  const navItems = isLoggedIn
-    ? [
-        { href: "/articles", label: "Articles", icon: "fas fa-book-open" },
-        { href: "/tests", label: "Skill Tests", icon: "fas fa-clipboard-check" },
-        { href: "/faq", label: "FAQ", icon: "fas fa-question-circle" },
-      ]
-    : [
-        { href: "/", label: "Home", icon: "fas fa-home" },
-        { href: "/articles", label: "Articles", icon: "fas fa-book-open" },
-        { href: "/tests", label: "Skill Tests", icon: "fas fa-clipboard-check" },
-        { href: "/faq", label: "FAQ", icon: "fas fa-question-circle" },
-        { href: "/video-practice", label: "Video Practice", icon: "fas fa-video" },
-      ];
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { isLoggedIn } = useAuth();
+
+  // Navigation items for public users (header only shows when not logged in)
+  const navItems = [
+    { href: "/", label: "Home", icon: "fas fa-home" },
+    { href: "/articles", label: "Articles", icon: "fas fa-book-open" },
+    { href: "/tests", label: "Skill Tests", icon: "fas fa-clipboard-check" },
+    { href: "/faq", label: "FAQ", icon: "fas fa-question-circle" },
+  ];
 
   const isActive = (href: string) => {
     if (href === "/" && location === "/") return true;
@@ -34,30 +28,33 @@ export default function Header() {
     <>
       <header className="bg-white shadow-lg sticky top-0 z-50 border-b border-gray-100">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row justify-between items-center h-18 py-4">
-            <div className="flex items-center mb-4 md:mb-0">
+          <div className="flex justify-between items-center h-18 py-4">
+            {/* Logo and Platform Name - Left side */}
+            <div className="flex items-center">
               <div className="flex-shrink-0">
                 <Link href="/">
                   <div className="flex items-center space-x-3 cursor-pointer group">
-                    <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center group-hover:shadow-lg transition-shadow">
-                      <i className="fas fa-comments text-white text-lg"></i>
+                    <div className="w-8 h-8 md:w-10 md:h-10 gradient-primary rounded-xl flex items-center justify-center group-hover:shadow-lg transition-shadow">
+                      <i className="fas fa-comments text-white text-sm md:text-lg"></i>
                     </div>
-                    <h1 className="text-2xl font-bold text-blue-600">
+                    <h1 className="text-xl md:text-2xl font-bold text-blue-600">
                       Tawasl
                     </h1>
                   </div>
                 </Link>
               </div>
             </div>
-            <div className={`flex-1 flex justify-center ${isLoggedIn ? 'bg-blue-50 rounded-lg py-2' : ''}`}>
-              <div className={`flex items-center gap-8 ${isLoggedIn ? 'text-lg font-semibold' : ''}`}>
+            
+            {/* Navigation Links - Hidden on mobile, centered on desktop */}
+            <div className="hidden md:flex flex-1 justify-center">
+              <div className="flex items-center gap-8">
                 {navItems.map((item) => (
                   <Link key={item.href} href={item.href}>
                     <div
                       className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center space-x-2 ${
                         isActive(item.href)
                           ? 'text-blue-600 bg-blue-100 shadow-sm' : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
-                      } ${isLoggedIn ? 'uppercase tracking-wide' : ''}`}
+                      }`}
                     >
                       <i className={`${item.icon} text-sm`}></i>
                       <span>{item.label}</span>
@@ -66,42 +63,24 @@ export default function Header() {
                 ))}
               </div>
             </div>
-            <div className="hidden md:block">
-              <div className="flex items-center space-x-4">
-                <Button 
-                  onClick={() => setIsChatOpen(true)}
-                  className="btn-ghost"
-                >
-                  <i className="fas fa-robot mr-2"></i>
-                  AI Chat
-                </Button>
-                <Button asChild className="btn-primary">
-                  <Link to="/video-practice">
+            
+            {/* Right side - AI Chat on desktop, Mobile menu on mobile */}
+            <div className="flex items-center space-x-4">
+              {/* Video Analysis Button - Hidden on mobile */}
+              <div className="hidden md:block">
+                <Link href="/video-practice">
+                  <Button className="btn-ghost">
                     <i className="fas fa-video mr-2"></i>
-                    Practice
-                  </Link>
-                </Button>
-                {isLoggedIn ? (
-                  <Button
-                    onClick={() => {
-                      localStorage.removeItem('platform_logged_in');
-                      window.location.reload();
-                    }}
-                    className="btn-outline"
-                  >
-                    Logout
+                    Video Practice
                   </Button>
-                ) : (
-                  <Button asChild className="btn-outline">
-                    <Link href="/login">Login</Link>
-                  </Button>
-                )}
+                </Link>
               </div>
-            </div>
-            <div className="md:hidden">
+              
+              {/* Mobile Menu Button - Right side */}
+              <div className="md:hidden">
               <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="sm" className="p-2">
+                  <Button variant="ghost" size="sm" className="p-2 hover:bg-gray-100">
                     <i className="fas fa-bars text-xl text-gray-600"></i>
                   </Button>
                 </SheetTrigger>
@@ -128,33 +107,27 @@ export default function Header() {
                         </div>
                       </Link>
                     ))}
-                    {!isLoggedIn && (
-                      <div className="pt-6 border-t border-gray-200 space-y-3">
+                    <div className="pt-6 border-t border-gray-200 space-y-3">
+                      <Link href="/video-practice">
                         <Button
                           variant="outline"
-                          onClick={() => {
-                            setIsChatOpen(true);
-                            setIsMobileMenuOpen(false);
-                          }}
+                          onClick={() => setIsMobileMenuOpen(false)}
                           className="w-full text-blue-600 border-blue-600 hover:bg-blue-600 hover:text-white"
                         >
-                          <i className="fas fa-robot mr-2"></i>
-                          AI Coach
+                          <i className="fas fa-video mr-2"></i>
+                          Video Practice
                         </Button>
-                        <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                          <i className="fas fa-rocket mr-2"></i>
-                          Get Started
-                        </Button>
-                      </div>
-                    )}
+                      </Link>
+                    </div>
                   </nav>
                 </SheetContent>
               </Sheet>
+              </div>
             </div>
           </div>
         </nav>
       </header>
-      <AIChatModal isOpen={isChatOpen} onOpenChange={setIsChatOpen} />
+
     </>
   );
 }

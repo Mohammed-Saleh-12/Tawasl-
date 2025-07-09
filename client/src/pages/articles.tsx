@@ -16,6 +16,8 @@ export default function Articles() {
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [isArticleModalOpen, setIsArticleModalOpen] = useState(false);
 
+  const isLoggedIn = typeof window !== 'undefined' && localStorage.getItem('platform_logged_in') === 'true';
+
   const { data: articles, isLoading } = useQuery<Article[]>({
     queryKey: ["/api/articles", search, category],
     queryFn: async () => {
@@ -93,13 +95,18 @@ export default function Articles() {
         <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
           Learn from expert insights and practical guides to improve your communication abilities
         </p>
-        <Button 
-          onClick={() => setIsCreateModalOpen(true)}
-          className="gradient-primary text-white hover:shadow-lg transition-all duration-200"
-        >
-          <i className="fas fa-plus mr-2"></i>
-          Create New Article
-        </Button>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Articles</h1>
+            <p className="text-gray-600 mt-2">Discover insights on communication and presentation skills</p>
+          </div>
+          {isLoggedIn && (
+            <Button onClick={() => setIsCreateModalOpen(true)} className="btn-primary">
+              <i className="fas fa-plus mr-2"></i>
+              Add Article
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Search and Filter */}
@@ -182,6 +189,18 @@ export default function Articles() {
                   </div>
                   <div className="mt-3 text-xs text-gray-400">
                     By {article.author} • {formatDate(article.publishedAt)}
+                  </div>
+                  <div className="flex justify-end gap-2 mt-2">
+                    {isLoggedIn && (
+                      <>
+                        <Button size="sm" variant="outline" onClick={() => openArticleModal(article)}>
+                          <i className="fas fa-edit mr-1"></i> Edit
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={(e) => handleDeleteClick(article, e)}>
+                          <i className="fas fa-trash mr-1"></i> Delete
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </CardContent>
               </Card>

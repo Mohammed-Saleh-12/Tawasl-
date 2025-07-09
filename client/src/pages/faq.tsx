@@ -12,6 +12,8 @@ export default function FAQ() {
   const [selectedCategory, setSelectedCategory] = useState("All Topics");
   const [openItems, setOpenItems] = useState<Set<number>>(new Set());
 
+  const isLoggedIn = typeof window !== 'undefined' && localStorage.getItem('platform_logged_in') === 'true';
+
   const { data: faqs, isLoading } = useQuery<FAQ[]>({
     queryKey: ["/api/faqs", search, selectedCategory],
     queryFn: async () => {
@@ -108,9 +110,21 @@ export default function FAQ() {
                   <h3 className="text-lg font-semibold text-gray-900 pr-4">
                     {faq.question}
                   </h3>
-                  <i className={`fas fa-chevron-down text-gray-400 transform transition-transform ${
-                    openItems.has(faq.id) ? 'rotate-180' : ''
-                  }`}></i>
+                  <div className="flex items-center gap-2">
+                    {isLoggedIn && (
+                      <>
+                        <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); handleEdit(faq); }}>
+                          <i className="fas fa-edit text-gray-500"></i>
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); handleDelete(faq); }}>
+                          <i className="fas fa-trash text-red-500"></i>
+                        </Button>
+                      </>
+                    )}
+                    <i className={`fas fa-chevron-down text-gray-400 transform transition-transform ${
+                      openItems.has(faq.id) ? 'rotate-180' : ''
+                    }`}></i>
+                  </div>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="px-6 pb-6">
                   <p className="text-gray-600 leading-relaxed">

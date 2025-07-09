@@ -53,6 +53,100 @@ export default function Tests() {
     return `${Math.ceil(diffDays / 30)} month${Math.ceil(diffDays / 30) > 1 ? 's' : ''} ago`;
   };
 
+  const isLoggedIn = typeof window !== 'undefined' && localStorage.getItem('platform_logged_in') === 'true';
+
+  if (isLoggedIn) {
+    return (
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Page Header */}
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">Communication Skill Tests</h1>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Evaluate your communication abilities with AI-powered assessments and receive personalized feedback
+          </p>
+        </div>
+
+        {/* Test Categories */}
+        {isLoading ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Card key={i} className="p-8">
+                <CardContent className="p-0">
+                  <Skeleton className="w-16 h-16 rounded-full mb-6" />
+                  <Skeleton className="h-6 w-3/4 mb-4" />
+                  <Skeleton className="h-4 w-full mb-2" />
+                  <Skeleton className="h-4 w-2/3 mb-6" />
+                  <div className="flex justify-between mb-6">
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-20" />
+                  </div>
+                  <Skeleton className="h-12 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : testCategories && testCategories.length > 0 ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+            {testCategories.map((category) => {
+              const colors = getColorClasses(category.color);
+              return (
+                <Card key={category.id} className="card-hover">
+                  <CardContent className="p-8">
+                    <div className={`${colors.bg} text-white p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6`}>
+                      <i className={`${category.icon} text-xl`}></i>
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-4">{category.name}</h3>
+                    <p className="text-gray-600 mb-6">{category.description}</p>
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="text-sm text-gray-500">
+                        <i className="fas fa-clock mr-1"></i>
+                        <span>{category.duration} minutes</span>
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        <i className="fas fa-question-circle mr-1"></i>
+                        <span>{category.questionCount} questions</span>
+                      </div>
+                    </div>
+                    <Button
+                      className={`w-full ${colors.bg} text-white ${colors.hover} transition-colors btn-enhanced`}
+                      onClick={() => handleStartTest(category)}
+                    >
+                      Start Test
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-12 mb-12">
+            <div className="text-gray-400 mb-4">
+              <i className="fas fa-clipboard-list text-4xl"></i>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No tests available</h3>
+            <p className="text-gray-600">Test categories will appear here when available.</p>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-4 justify-center mt-6">
+          {isLoggedIn && (
+            <>
+              <Button onClick={() => setIsCategoryModalOpen(true)} className="btn-primary">
+                <i className="fas fa-plus mr-2"></i> Add Test Category
+              </Button>
+              <Button onClick={() => setIsQuestionModalOpen(true)} className="btn-secondary">
+                <i className="fas fa-plus mr-2"></i> Add Test Question
+              </Button>
+              <Button onClick={() => setIsManagementModalOpen(true)} className="btn-outline">
+                <i className="fas fa-cog mr-2"></i> Manage Tests
+              </Button>
+            </>
+          )}
+        </div>
+      </main>
+    );
+  }
+
   return (
     <>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

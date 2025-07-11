@@ -5,7 +5,7 @@ import {
   type TestResult, type InsertTestResult, type FAQ, type InsertFAQ,
   type VideoAnalysis, type InsertVideoAnalysis
 } from "@shared/schema";
-import { db } from "./db-local";
+import { db } from "./db";
 import { eq } from "drizzle-orm";
 
 export interface IStorage {

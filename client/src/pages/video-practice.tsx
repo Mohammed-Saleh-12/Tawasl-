@@ -865,7 +865,7 @@ export default function VideoPractice() {
                   <SelectTrigger className="text-center">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-white">
                     {scenarios.map((scenario) => (
                       <SelectItem key={scenario} value={scenario}>
                         {scenario}

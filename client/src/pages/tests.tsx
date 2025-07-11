@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ import { apiClient } from "@/lib/api";
 import type { TestCategory, TestResult } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 import IconSelector from '../components/IconSelector';
+import TestFormModal from "../components/test-form-modal";
+import TestManagementModal from "../components/test-management-modal";
 
 // Simple Modal Component
 function SimpleModal({ isOpen, onClose, title, children }: {
@@ -64,8 +66,11 @@ function SimpleModal({ isOpen, onClose, title, children }: {
               alignItems: 'center',
               justifyContent: 'center'
             }}
+            aria-label="Close"
           >
-            ×
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 6L14 14M6 14L14 6" stroke="#374151" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
           </button>
         </div>
         {children}
@@ -461,30 +466,81 @@ export default function Tests() {
   const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
   const [isManagementModalOpen, setIsManagementModalOpen] = useState(false);
   const [selectedCategoryForQuestions, setSelectedCategoryForQuestions] = useState<number | null>(null);
-  const [questionsForCategory, setQuestionsForCategory] = useState<any[]>([]);
-  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
+  const [lastSelectedCategory, setLastSelectedCategory] = useState<number | null>(null);
   const [, setLocation] = useLocation();
   const { isLoggedIn } = useAuth();
+  const queryClient = useQueryClient();
 
-  const { data: categoriesData, isLoading: isLoadingCategories } = useQuery({
-    queryKey: ["/api/test-categories"],
+  // When a category is selected, update lastSelectedCategory
+  const handleSelectCategory = (categoryId: number) => {
+    setSelectedCategoryForQuestions(categoryId);
+    setLastSelectedCategory(categoryId);
+  };
+
+  // If selectedCategoryForQuestions becomes null but we have a lastSelectedCategory, re-select it
+  useEffect(() => {
+    if (selectedCategoryForQuestions == null && lastSelectedCategory != null) {
+      setSelectedCategoryForQuestions(lastSelectedCategory);
+    }
+  }, [selectedCategoryForQuestions, lastSelectedCategory]);
+
+  const { data: categoriesData, isLoading: isLoadingCategories, error: categoriesError } = useQuery({
+    queryKey: ["/test-categories"],
     queryFn: async () => {
-      const response = await apiClient.get("/test-categories");
-      return response.categories || response;
+      return await apiClient.get("/test-categories");
     }
   });
 
-  const categories = Array.isArray(categoriesData) ? categoriesData : (categoriesData?.categories || []);
+  const categories = categoriesData || [];
 
-  const { data: resultsData, isLoading: isLoadingResults } = useQuery({
-    queryKey: ["/api/test-results"],
+  const { data: resultsData, isLoading: isLoadingResults, error: resultsError, refetch: refetchResults } = useQuery({
+    queryKey: ["/test-results"],
     queryFn: async () => {
-      const response = await apiClient.get("/test-results");
-      return response.results || response;
+      return await apiClient.get("/test-results");
     }
   });
 
-  const results = Array.isArray(resultsData) ? resultsData : (resultsData?.results || []);
+  const results = resultsData?.results || [];
+
+  // Listen for cache changes and refetch when needed
+  useEffect(() => {
+    const handleFocus = () => {
+      // Refetch when user returns to the tab
+      refetchResults();
+    };
+
+    // Also refetch when the component mounts or when results change
+    refetchResults();
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [refetchResults]);
+
+  // Listen for specific cache invalidations
+  useEffect(() => {
+    const handleStorageChange = () => {
+      // Refetch when localStorage changes (indicates data updates)
+      refetchResults();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [refetchResults]);
+
+  // Force refetch when results data changes
+  useEffect(() => {
+    if (resultsData) {
+      // This ensures the component re-renders when data changes
+      console.log('Test results updated:', resultsData);
+    }
+  }, [resultsData]);
+
+  // Force refetch when categories data changes
+  useEffect(() => {
+    if (categoriesData) {
+      console.log('Test categories updated:', categoriesData);
+    }
+  }, [categoriesData]);
 
   const handleStartTest = (category: TestCategory) => {
     setSelectedTest(category);
@@ -495,51 +551,137 @@ export default function Tests() {
     try {
       await apiClient.post("/test-categories", data);
       setIsCategoryModalOpen(false);
-      window.location.reload();
-    } catch (error) {
+      
+      // Invalidate and refetch all test-related queries
+      await queryClient.invalidateQueries({ queryKey: ["/test-categories"] });
+      await queryClient.invalidateQueries({ queryKey: ["/test-questions"], exact: false });
+      
+      // Force refetch to ensure immediate update
+      await queryClient.refetchQueries({ queryKey: ["/test-categories"] });
+      await queryClient.refetchQueries({ queryKey: ["/test-questions"], exact: false });
+    } catch (error: any) {
       console.error('Error creating category:', error);
-      alert('Error creating category');
+      alert('Error creating category: ' + (error?.response?.data?.error || error.message || error));
     }
   };
+
+  // Helper to get the next available category ID (after a given one)
+  const getNextCategoryId = (deletedId: number | null) => {
+    if (!categories || categories.length === 0) return null;
+    // Try to find the next category after the deleted one
+    const idx = categories.findIndex((cat: TestCategory) => cat.id === deletedId);
+    if (idx === -1 || idx === categories.length - 1) {
+      // If deleted is last or not found, pick the first
+      return categories[0].id;
+    } else {
+      // Pick the next one
+      return categories[idx + 1].id;
+    }
+  };
+
+  // Patch: When deleting a category, only invalidate and refetch, do not set selection here
+  const handleDeleteCategory = async (categoryId: number) => {
+    try {
+      await apiClient.delete(`/test-categories/${categoryId}`);
+      
+      // Invalidate and refetch all test-related queries
+      await queryClient.invalidateQueries({ queryKey: ["/test-categories"] });
+      await queryClient.invalidateQueries({ queryKey: ["/test-questions"], exact: false });
+      
+      // Force refetch to ensure immediate update
+      await queryClient.refetchQueries({ queryKey: ["/test-categories"] });
+      await queryClient.refetchQueries({ queryKey: ["/test-questions"], exact: false });
+      
+      // Do NOT setSelectedCategoryForQuestions here!
+    } catch (error: any) {
+      console.error('Error deleting category:', error);
+      alert('Error deleting category: ' + (error?.response?.data?.error || error.message || error));
+    }
+  };
+
+  // Always ensure a valid selected category after categories or selection changes
+  useEffect(() => {
+    if (!categories || categories.length === 0) {
+      setSelectedCategoryForQuestions(null);
+      setLastSelectedCategory(null);
+      return;
+    }
+    // If the selected category no longer exists, select the first available
+    const exists = categories.some((cat: TestCategory) => cat.id === selectedCategoryForQuestions);
+    if (!exists) {
+      setSelectedCategoryForQuestions(categories[0].id);
+      setLastSelectedCategory(categories[0].id);
+    }
+  }, [categories, selectedCategoryForQuestions]);
+
+  // Only run the questions query if the selected category exists in the categories list
+  const selectedCategoryExists = categories.some((cat: TestCategory) => cat.id === selectedCategoryForQuestions);
+
+  const {
+    data: questionsForCategory,
+    isLoading: isLoadingQuestions,
+    refetch: refetchQuestionsForCategory
+  } = useQuery({
+    queryKey: ["/test-questions", selectedCategoryForQuestions],
+    queryFn: async () => {
+      if (!selectedCategoryForQuestions || !selectedCategoryExists) return [];
+      const response = await apiClient.get(`/test-questions/${selectedCategoryForQuestions}`);
+      return response.questions || response;
+    },
+    enabled: !!selectedCategoryForQuestions && selectedCategoryExists
+  });
+
+  // Force refetch when questions data changes
+  useEffect(() => {
+    if (questionsForCategory) {
+      console.log('Test questions updated:', questionsForCategory);
+    }
+  }, [questionsForCategory]);
 
   const handleQuestionSave = async (data: any) => {
     try {
       await apiClient.post("/test-questions", data);
       setIsQuestionModalOpen(false);
-      // Refresh questions for the current category
-      if (selectedTest) {
-        await fetchQuestionsForCategory(selectedTest.id);
+      
+      // Invalidate and refetch all test-related queries
+      await queryClient.invalidateQueries({ queryKey: ["/test-questions"], exact: false });
+      await queryClient.invalidateQueries({ queryKey: ["/test-categories"] });
+      
+      // Force refetch to ensure immediate update
+      await queryClient.refetchQueries({ queryKey: ["/test-questions"], exact: false });
+      await queryClient.refetchQueries({ queryKey: ["/test-categories"] });
+      
+      // If we have a selected category, also refetch its specific questions
+      if (selectedCategoryForQuestions) {
+        await queryClient.invalidateQueries({ queryKey: ["/test-questions", selectedCategoryForQuestions] });
+        await refetchQuestionsForCategory();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating question:', error);
-      alert('Error creating question');
-    }
-  };
-
-  const fetchQuestionsForCategory = async (categoryId: number) => {
-    setIsLoadingQuestions(true);
-    try {
-      const response = await apiClient.get(`/test-questions/${categoryId}`);
-      setQuestionsForCategory(response.questions || response);
-      setSelectedCategoryForQuestions(categoryId);
-    } catch (error) {
-      console.error('Error fetching questions:', error);
-      setQuestionsForCategory([]);
-    } finally {
-      setIsLoadingQuestions(false);
+      alert('Error creating question: ' + (error?.response?.data?.error || error.message || error));
     }
   };
 
   const deleteQuestion = async (questionId: number) => {
     try {
       await apiClient.delete(`/test-questions/${questionId}`);
-      // Refresh questions for the current category
+      
+      // Invalidate and refetch all test-related queries
+      await queryClient.invalidateQueries({ queryKey: ["/test-questions"], exact: false });
+      await queryClient.invalidateQueries({ queryKey: ["/test-categories"] });
+      
+      // Force refetch to ensure immediate update
+      await queryClient.refetchQueries({ queryKey: ["/test-questions"], exact: false });
+      await queryClient.refetchQueries({ queryKey: ["/test-categories"] });
+      
+      // If we have a selected category, also refetch its specific questions
       if (selectedCategoryForQuestions) {
-        await fetchQuestionsForCategory(selectedCategoryForQuestions);
+        await queryClient.invalidateQueries({ queryKey: ["/test-questions", selectedCategoryForQuestions] });
+        await refetchQuestionsForCategory();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting question:', error);
-      alert('Error deleting question');
+      alert('Error deleting question: ' + (error?.response?.data?.error || error.message || error));
     }
   };
 
@@ -579,7 +721,7 @@ export default function Tests() {
         {/* Back to Home Button for Logged-in Users */}
         <div className="mb-6">
           <Button 
-            onClick={() => setLocation('/')}
+            onClick={() => setLocation('/')} 
             variant="outline"
             className="flex items-center gap-2 hover:bg-blue-50 hover:border-blue-300 transition-all duration-200"
           >
@@ -587,7 +729,6 @@ export default function Tests() {
             Back to Home
           </Button>
         </div>
-
         {/* Page Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Communication Skill Tests</h1>
@@ -595,7 +736,6 @@ export default function Tests() {
             Evaluate your communication abilities with AI-powered assessments and receive personalized feedback
           </p>
         </div>
-
         {/* Test Categories */}
         {isLoadingCategories ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
@@ -617,7 +757,7 @@ export default function Tests() {
           </div>
         ) : categories && categories.length > 0 ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-            {categories.map((category) => {
+            {categories.map((category: TestCategory) => {
               const colors = getColorClasses(category.color);
               return (
                 <Card key={category.id} className="card-hover">
@@ -657,466 +797,55 @@ export default function Tests() {
             <p className="text-gray-600">Test categories will appear here when available.</p>
           </div>
         )}
-
         <div className="flex flex-wrap gap-4 justify-center mt-6">
           {isLoggedIn && (
             <>
-              <Button 
-                onClick={() => setIsCategoryModalOpen(true)} 
-                className="btn-primary"
-              >
+              <Button onClick={() => setIsCategoryModalOpen(true)} className="btn-primary">
                 <i className="fas fa-plus mr-2"></i> Add Test Category
               </Button>
-              <Button 
-                onClick={() => setIsQuestionModalOpen(true)} 
-                className="btn-secondary"
-              >
+              <Button onClick={() => setIsQuestionModalOpen(true)} className="btn-secondary">
                 <i className="fas fa-plus mr-2"></i> Add Test Question
               </Button>
-              <Button 
-                onClick={() => setIsManagementModalOpen(true)} 
-                className="btn-outline"
-              >
+              <Button onClick={() => setIsManagementModalOpen(true)} className="btn-outline">
                 <i className="fas fa-cog mr-2"></i> Manage Tests
               </Button>
             </>
           )}
         </div>
-
-        {/* Modals */}
-        <SimpleModal
-          isOpen={isCategoryModalOpen}
-          onClose={() => setIsCategoryModalOpen(false)}
-          title="Add Test Category"
-        >
-          <CategoryForm
-            onSave={handleCategorySave}
-            onCancel={() => setIsCategoryModalOpen(false)}
+        {isCategoryModalOpen && (
+          <TestFormModal
+            isOpen={isCategoryModalOpen}
+            onOpenChange={setIsCategoryModalOpen}
+            mode="category"
           />
-        </SimpleModal>
-
-        <SimpleModal
-          isOpen={isQuestionModalOpen}
-          onClose={() => setIsQuestionModalOpen(false)}
-          title="Add Test Question"
-        >
-          <QuestionForm
+        )}
+        {isQuestionModalOpen && (
+          <TestFormModal
+            isOpen={isQuestionModalOpen}
+            onOpenChange={setIsQuestionModalOpen}
+            mode="question"
             categories={categories}
-            onSave={handleQuestionSave}
-            onCancel={() => setIsQuestionModalOpen(false)}
           />
-        </SimpleModal>
-
-        <SimpleModal
-          isOpen={isManagementModalOpen}
-          onClose={() => setIsManagementModalOpen(false)}
-          title="Manage Tests"
-        >
-          <div style={{ 
-            padding: '20px 0',
-            backgroundColor: '#ffffff',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '24px'
-          }}>
-            {/* Test Categories Management */}
-            <div style={{ backgroundColor: '#ffffff' }}>
-              <h3 style={{ 
-                fontSize: '18px', 
-                fontWeight: 'bold', 
-                marginBottom: '16px',
-                color: '#111827',
-                backgroundColor: '#ffffff'
-              }}>
-                Test Categories
-              </h3>
-              {categories && categories.length > 0 ? (
-                <div style={{ 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  gap: '12px',
-                  backgroundColor: '#ffffff'
-                }}>
-                  {categories.map((category) => (
-                    <div key={category.id} style={{
-                      padding: '16px',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      backgroundColor: '#ffffff',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}>
-                      <div style={{ backgroundColor: '#ffffff' }}>
-                        <h4 style={{ 
-                          fontWeight: 'bold', 
-                          marginBottom: '4px',
-                          color: '#111827',
-                          backgroundColor: '#ffffff'
-                        }}>
-                          {category.name}
-                        </h4>
-                        <p style={{ 
-                          fontSize: '14px', 
-                          color: '#6b7280',
-                          margin: 0,
-                          backgroundColor: '#ffffff'
-                        }}>
-                          {category.description}
-                        </p>
-                        <div style={{ 
-                          display: 'flex', 
-                          gap: '16px', 
-                          marginTop: '8px',
-                          fontSize: '12px',
-                          color: '#6b7280',
-                          backgroundColor: '#ffffff'
-                        }}>
-                          <span>Duration: {category.duration} min</span>
-                          <span>Questions: {category.questionCount}</span>
-                        </div>
-                      </div>
-                      <div style={{ 
-                        display: 'flex', 
-                        gap: '8px',
-                        backgroundColor: '#ffffff'
-                      }}>
-                        <button
-                          onClick={async () => {
-                            if (confirm(`Are you sure you want to delete "${category.name}"? This will also delete all questions in this category.`)) {
-                              try {
-                                await apiClient.delete(`/test-categories/${category.id}`);
-                                window.location.reload();
-                              } catch (error) {
-                                console.error('Error deleting category:', error);
-                                alert('Error deleting category');
-                              }
-                            }
-                          }}
-                          style={{
-                            padding: '8px 12px',
-                            border: '1px solid #ef4444',
-                            borderRadius: '4px',
-                            backgroundColor: '#ffffff',
-                            color: '#ef4444',
-                            cursor: 'pointer',
-                            fontSize: '14px'
-                          }}
-                        >
-                          <i className="fas fa-trash" style={{ marginRight: '4px' }}></i>
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p style={{ 
-                  color: '#6b7280', 
-                  textAlign: 'center',
-                  backgroundColor: '#ffffff'
-                }}>
-                  No test categories available
-                </p>
-              )}
-            </div>
-
-            {/* Test Questions Management */}
-            <div style={{ backgroundColor: '#ffffff' }}>
-              <h3 style={{ 
-                fontSize: '18px', 
-                fontWeight: 'bold', 
-                marginBottom: '16px',
-                color: '#111827',
-                backgroundColor: '#ffffff'
-              }}>
-                Test Questions
-              </h3>
-              <div style={{ 
-                display: 'flex', 
-                gap: '12px',
-                marginBottom: '16px',
-                backgroundColor: '#ffffff'
-              }}>
-                <select
-                  id="questionCategoryFilter"
-                  style={{
-                    padding: '8px 12px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    backgroundColor: '#ffffff',
-                    fontSize: '14px'
-                  }}
-                  value={selectedCategoryForQuestions || ''}
-                  onChange={(e) => {
-                    const categoryId = parseInt(e.target.value);
-                    if (categoryId) {
-                      fetchQuestionsForCategory(categoryId);
-                    } else {
-                      setQuestionsForCategory([]);
-                      setSelectedCategoryForQuestions(null);
-                    }
-                  }}
-                >
-                  <option value="">Select a category to view questions</option>
-                  {categories?.map(category => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div style={{ 
-                maxHeight: '300px', 
-                overflow: 'auto',
-                backgroundColor: '#ffffff'
-              }}>
-                {isLoadingQuestions ? (
-                  <div style={{ 
-                    textAlign: 'center', 
-                    padding: '20px',
-                    backgroundColor: '#ffffff'
-                  }}>
-                    <p style={{ color: '#6b7280', backgroundColor: '#ffffff' }}>Loading questions...</p>
-                  </div>
-                ) : questionsForCategory.length > 0 ? (
-                  <div style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    gap: '12px',
-                    backgroundColor: '#ffffff'
-                  }}>
-                    {questionsForCategory.map((question) => (
-                      <div key={question.id} style={{
-                        padding: '16px',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '8px',
-                        backgroundColor: '#ffffff'
-                      }}>
-                        <div style={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between',
-                          alignItems: 'flex-start',
-                          backgroundColor: '#ffffff'
-                        }}>
-                          <div style={{ flex: 1, backgroundColor: '#ffffff' }}>
-                            <h4 style={{ 
-                              fontWeight: 'bold', 
-                              marginBottom: '8px',
-                              color: '#111827',
-                              backgroundColor: '#ffffff'
-                            }}>
-                              {question.question}
-                            </h4>
-                            <div style={{ 
-                              display: 'flex', 
-                              flexDirection: 'column',
-                              gap: '4px',
-                              backgroundColor: '#ffffff'
-                            }}>
-                              {question.options?.map((option: string, index: number) => (
-                                <div key={index} style={{
-                                  padding: '4px 8px',
-                                  backgroundColor: question.correctAnswer === index ? '#dcfce7' : '#f3f4f6',
-                                  borderRadius: '4px',
-                                  fontSize: '14px',
-                                  color: question.correctAnswer === index ? '#166534' : '#374151'
-                                }}>
-                                  {String.fromCharCode(65 + index)}. {option}
-                                  {question.correctAnswer === index && (
-                                    <span style={{ 
-                                      marginLeft: '8px', 
-                                      fontWeight: 'bold',
-                                      color: '#059669'
-                                    }}>
-                                      ✓ Correct
-                                    </span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => deleteQuestion(question.id)}
-                            style={{
-                              padding: '6px 10px',
-                              border: '1px solid #ef4444',
-                              borderRadius: '4px',
-                              backgroundColor: '#ffffff',
-                              color: '#ef4444',
-                              cursor: 'pointer',
-                              fontSize: '12px',
-                              marginLeft: '12px'
-                            }}
-                          >
-                            <i className="fas fa-trash"></i>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : selectedCategoryForQuestions ? (
-                  <p style={{ 
-                    color: '#6b7280', 
-                    textAlign: 'center',
-                    backgroundColor: '#ffffff'
-                  }}>
-                    No questions found for this category
-                  </p>
-                ) : (
-                  <p style={{ 
-                    color: '#6b7280', 
-                    textAlign: 'center',
-                    backgroundColor: '#ffffff'
-                  }}>
-                    Select a category above to view and manage questions
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Test Results Management */}
-            <div style={{ backgroundColor: '#ffffff' }}>
-              <h3 style={{ 
-                fontSize: '18px', 
-                fontWeight: 'bold', 
-                marginBottom: '16px',
-                color: '#111827',
-                backgroundColor: '#ffffff'
-              }}>
-                Test Results
-              </h3>
-              {results && results.length > 0 ? (
-                <div style={{ 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  gap: '8px',
-                  backgroundColor: '#ffffff'
-                }}>
-                  {results.slice(0, 5).map((result) => {
-                    const category = categories?.find(cat => cat.id === result.categoryId);
-                    return (
-                      <div key={result.id} style={{
-                        padding: '12px',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '6px',
-                        backgroundColor: '#ffffff',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                      }}>
-                        <div style={{ backgroundColor: '#ffffff' }}>
-                          <span style={{ 
-                            fontWeight: 'bold',
-                            color: '#111827',
-                            backgroundColor: '#ffffff'
-                          }}>
-                            {category?.name || 'Unknown Test'}
-                          </span>
-                          <span style={{ 
-                            fontSize: '12px', 
-                            color: '#6b7280',
-                            marginLeft: '8px',
-                            backgroundColor: '#ffffff'
-                          }}>
-                            {formatDate(result.completedAt)}
-                          </span>
-                        </div>
-                        <div style={{ 
-                          display: 'flex', 
-                          alignItems: 'center',
-                          gap: '12px',
-                          backgroundColor: '#ffffff'
-                        }}>
-                          <span style={{ 
-                            fontWeight: 'bold',
-                            color: '#059669',
-                            backgroundColor: '#ffffff'
-                          }}>
-                            {Math.round((result.score / result.totalQuestions) * 100)}%
-                          </span>
-                          <button
-                            onClick={async () => {
-                              if (confirm('Are you sure you want to delete this test result?')) {
-                                try {
-                                  await apiClient.delete(`/test-results/${result.id}`);
-                                  window.location.reload();
-                                } catch (error) {
-                                  console.error('Error deleting test result:', error);
-                                  alert('Error deleting test result');
-                                }
-                              }
-                            }}
-                            style={{
-                              padding: '4px 8px',
-                              border: '1px solid #ef4444',
-                              borderRadius: '4px',
-                              backgroundColor: '#ffffff',
-                              color: '#ef4444',
-                              cursor: 'pointer',
-                              fontSize: '12px'
-                            }}
-                          >
-                            <i className="fas fa-trash"></i>
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {results.length > 5 && (
-                    <p style={{ 
-                      fontSize: '12px', 
-                      color: '#6b7280', 
-                      textAlign: 'center',
-                      backgroundColor: '#ffffff'
-                    }}>
-                      Showing 5 most recent results. {results.length - 5} more results available.
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <p style={{ 
-                  color: '#6b7280', 
-                  textAlign: 'center',
-                  backgroundColor: '#ffffff'
-                }}>
-                  No test results available
-                </p>
-              )}
-            </div>
-
-            {/* Close Button */}
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'flex-end', 
-              marginTop: '20px',
-              backgroundColor: '#ffffff'
-            }}>
-              <button
-                onClick={() => setIsManagementModalOpen(false)}
-                style={{
-                  padding: '12px 24px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  backgroundColor: '#ffffff',
-                  color: '#374151',
-                  cursor: 'pointer',
-                  fontSize: '16px',
-                  fontWeight: '500'
-                }}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </SimpleModal>
-
-        {selectedTest && (
-          <TestModal
-            isOpen={isTestModalOpen}
-            onOpenChange={setIsTestModalOpen}
-            testCategory={selectedTest}
+        )}
+        {isManagementModalOpen && (
+          <TestManagementModal
+            isOpen={isManagementModalOpen}
+            onOpenChange={(open) => {
+              setIsManagementModalOpen(open);
+              // If modal is closing, refresh test results to ensure updates are reflected
+              if (!open) {
+                refetchResults();
+              }
+            }}
+            onDataChange={() => {
+              // Immediately refetch all data when anything changes in the modal
+              refetchResults();
+              // Also refetch categories and questions to ensure everything is up to date
+              queryClient.invalidateQueries({ queryKey: ["/test-categories"] });
+              queryClient.invalidateQueries({ queryKey: ["/test-questions"], exact: false });
+              queryClient.refetchQueries({ queryKey: ["/test-categories"] });
+              queryClient.refetchQueries({ queryKey: ["/test-questions"], exact: false });
+            }}
           />
         )}
       </main>
@@ -1154,7 +883,7 @@ export default function Tests() {
         </div>
       ) : categories && categories.length > 0 ? (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-          {categories.map((category) => {
+          {categories.map((category: TestCategory) => {
             const colors = getColorClasses(category.color);
             return (
               <Card key={category.id} className="card-hover">
@@ -1201,8 +930,8 @@ export default function Tests() {
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Your Test History</h2>
           {results && results.length > 0 ? (
             <div className="space-y-4">
-              {results.map((result) => {
-                const category = categories?.find(cat => cat.id === result.categoryId);
+              {results.map((result: TestResult) => {
+                const category = categories?.find((cat: TestCategory) => cat.id === result.categoryId);
                 const colors = category ? getColorClasses(category.color) : { bg: "bg-gray-500", text: "text-gray-500" };
                 
                 return (

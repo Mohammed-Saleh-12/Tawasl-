@@ -81,10 +81,8 @@ function SimpleModal({ isOpen, onClose, title, children }: {
               Share your communication expertise with the community
             </p>
           </div>
-          <button 
-            onClick={onClose}
+          <button
             style={{
-              background: '#f3f4f6',
               border: '1px solid #d1d5db',
               borderRadius: '50%',
               fontSize: '20px',
@@ -106,8 +104,12 @@ function SimpleModal({ isOpen, onClose, title, children }: {
               e.currentTarget.style.backgroundColor = '#f3f4f6';
               e.currentTarget.style.color = '#6b7280';
             }}
+            onClick={onClose}
+            aria-label="Close"
           >
-            ×
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 6L14 14M6 14L14 6" stroke="#374151" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
           </button>
         </div>
         <div style={{ backgroundColor: '#ffffff' }}>
@@ -134,12 +136,17 @@ export default function ArticleFormModal({ isOpen, onOpenChange }: ArticleFormMo
 
   const createArticleMutation = useMutation({
     mutationFn: async (data: any) => {
+      // Remove imageUrl if empty
+      const payload = { ...data };
+      if (!payload.imageUrl) {
+        delete payload.imageUrl;
+      }
       const response = await fetch('/api/articles', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
       
       if (!response.ok) {
@@ -190,7 +197,30 @@ export default function ArticleFormModal({ isOpen, onOpenChange }: ArticleFormMo
       });
       return;
     }
-
+    if (formData.title.length < 3) {
+      toast({
+        title: "Title Too Short",
+        description: "Title must be at least 3 characters.",
+        variant: "destructive"
+      });
+      return;
+    }
+    if (formData.excerpt.length < 10) {
+      toast({
+        title: "Excerpt Too Short",
+        description: "Excerpt must be at least 10 characters.",
+        variant: "destructive"
+      });
+      return;
+    }
+    if (formData.content.length < 20) {
+      toast({
+        title: "Content Too Short",
+        description: "Content must be at least 20 characters.",
+        variant: "destructive"
+      });
+      return;
+    }
     createArticleMutation.mutate(formData);
   };
 

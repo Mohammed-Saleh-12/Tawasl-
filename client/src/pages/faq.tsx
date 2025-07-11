@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,22 +18,19 @@ export default function FAQ() {
   const [selectedFAQ, setSelectedFAQ] = useState<FAQ | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
 
   const isLoggedIn = typeof window !== 'undefined' && localStorage.getItem('platform_logged_in') === 'true';
 
-  const { data: faqsData, isLoading } = useQuery({
+  const { data: faqs, isLoading, error } = useQuery<FAQ[]>({
     queryKey: ["/api/faqs", search, selectedCategory],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (search) params.append("search", search);
       if (selectedCategory !== "All Topics") params.append("category", selectedCategory);
-      
-      const response = await apiClient.get(`/faqs?${params}`);
-      return response.faqs || response;
+      return await apiClient.get(`/faqs?${params}`);
     }
   });
-
-  const faqs = Array.isArray(faqsData) ? faqsData : (faqsData?.faqs || []);
 
   const categories = [
     "All Topics",
@@ -65,11 +62,11 @@ export default function FAQ() {
     if (confirm(`Are you sure you want to delete "${faq.question}"?`)) {
       try {
         await apiClient.delete(`/faqs/${faq.id}`);
-        // Refresh the FAQs list
-        window.location.reload();
-      } catch (error) {
+        // Refetch FAQs after deletion
+        queryClient.invalidateQueries({ queryKey: ["/api/faqs"] });
+      } catch (error: any) {
         console.error('Error deleting FAQ:', error);
-        alert('Error deleting FAQ');
+        alert('Error deleting FAQ: ' + (error?.response?.data?.error || error.message || error));
       }
     }
   };
@@ -166,22 +163,24 @@ export default function FAQ() {
                   <div className="flex items-center gap-2">
                     {isLoggedIn && (
                       <>
-                        <Button 
-                          size="icon" 
-                          variant="ghost" 
+                        <span
+                          role="button"
+                          tabIndex={0}
                           onClick={(e) => { e.stopPropagation(); handleEdit(faq); }}
-                          className="w-10 h-10 rounded-xl hover:bg-blue-100 hover:text-blue-600 transition-all duration-200 hover:scale-110"
+                          className="inline-flex items-center justify-center p-2 rounded hover:bg-gray-100 cursor-pointer"
+                          style={{ outline: 'none' }}
                         >
-                          <i className="fas fa-edit text-gray-500 hover:text-blue-600"></i>
-                        </Button>
-                        <Button 
-                          size="icon" 
-                          variant="ghost" 
+                          <i className="fas fa-edit text-gray-500"></i>
+                        </span>
+                        <span
+                          role="button"
+                          tabIndex={0}
                           onClick={(e) => { e.stopPropagation(); handleDeleteClick(faq, e); }}
-                          className="w-10 h-10 rounded-xl hover:bg-red-100 hover:text-red-600 transition-all duration-200 hover:scale-110"
+                          className="inline-flex items-center justify-center p-2 rounded hover:bg-gray-100 cursor-pointer"
+                          style={{ outline: 'none' }}
                         >
-                          <i className="fas fa-trash text-red-500 hover:text-red-600"></i>
-                        </Button>
+                          <i className="fas fa-trash text-red-500"></i>
+                        </span>
                       </>
                     )}
                     <i className={`fas fa-chevron-down text-gray-400 transform transition-transform ${
@@ -213,20 +212,11 @@ export default function FAQ() {
         </div>
       )}
 
-      {/* Contact Support */}
-      <div className="mt-12 text-center bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-8 border border-blue-100">
-        <h3 className="text-2xl font-bold text-gray-900 mb-4">Still have questions?</h3>
-        <p className="text-gray-600 mb-6 text-lg">Our support team is here to help you make the most of your communication skills journey.</p>
-        <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 flex items-center gap-3">
-          <i className="fas fa-envelope text-lg"></i>
-          Contact Support
-        </Button>
-      </div>
-
       {/* FAQ Creation Modal */}
       <FAQFormModal 
         isOpen={isCreateModalOpen} 
         onOpenChange={setIsCreateModalOpen} 
+        mode="create"
       />
 
       {/* FAQ Edit Modal */}
@@ -235,6 +225,7 @@ export default function FAQ() {
           isOpen={isEditModalOpen} 
           onOpenChange={setIsEditModalOpen}
           faq={selectedFAQ}
+          mode="edit"
         />
       )}
     </main>

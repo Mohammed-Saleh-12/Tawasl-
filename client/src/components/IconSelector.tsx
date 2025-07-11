@@ -15,6 +15,26 @@ const communicationIcons = [
   { value: 'fas fa-user-tie', label: 'User Tie' },
   { value: 'fas fa-users', label: 'Users' },
   { value: 'fas fa-question-circle', label: 'Question Circle' },
+  // Additional communication skill-related icons
+  { value: 'fas fa-hand-paper', label: 'Hand Gesture' },
+  { value: 'fas fa-handshake', label: 'Handshake' },
+  { value: 'fas fa-ear-listen', label: 'Listening' },
+  { value: 'fas fa-volume-up', label: 'Speaking' },
+  { value: 'fas fa-chalkboard', label: 'Presentation' },
+  { value: 'fas fa-people-arrows', label: 'Collaboration' },
+  { value: 'fas fa-heart', label: 'Empathy' },
+  { value: 'fas fa-lightbulb', label: 'Idea' },
+  { value: 'fas fa-brain', label: 'Thinking' },
+  { value: 'fas fa-hands-helping', label: 'Helping' },
+  { value: 'fas fa-language', label: 'Language' },
+  { value: 'fas fa-smile', label: 'Smile' },
+  { value: 'fas fa-eye', label: 'Eye Contact' },
+  { value: 'fas fa-people-group', label: 'Group' },
+  { value: 'fas fa-handshake-angle', label: 'Negotiation' },
+  { value: 'fas fa-people-carry-box', label: 'Teamwork' },
+  { value: 'fas fa-hands-clapping', label: 'Applause' },
+  { value: 'fas fa-person-chalkboard', label: 'Trainer' },
+  { value: 'fas fa-person-rays', label: 'Confidence' },
 ];
 
 interface IconSelectorProps {

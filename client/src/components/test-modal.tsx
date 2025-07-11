@@ -73,10 +73,8 @@ function SimpleModal({ isOpen, onClose, title, children }: {
           }}>
             {title}
           </h2>
-          <button 
-            onClick={onClose}
+          <button
             style={{
-              background: '#f3f4f6',
               border: '1px solid #d1d5db',
               borderRadius: '50%',
               fontSize: '20px',
@@ -98,8 +96,12 @@ function SimpleModal({ isOpen, onClose, title, children }: {
               e.currentTarget.style.backgroundColor = '#f3f4f6';
               e.currentTarget.style.color = '#6b7280';
             }}
+            onClick={onClose}
+            aria-label="Close"
           >
-            ×
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 6L14 14M6 14L14 6" stroke="#374151" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
           </button>
         </div>
         <div style={{ backgroundColor: '#ffffff' }}>
@@ -121,27 +123,37 @@ export default function TestModal({ isOpen, onOpenChange, testCategory }: TestMo
   const { toast } = useToast();
 
   const { data: questions, isLoading } = useQuery<TestQuestion[]>({
-          queryKey: [`test-categories/${testCategory.id}/questions`],
+    queryKey: [`/test-categories/${testCategory.id}/questions`],
     queryFn: async () => {
-      return await apiClient.get(`/test-categories/${testCategory.id}/questions`);
+      const response = await apiClient.get(`/test-categories/${testCategory.id}/questions`);
+      return response.questions || [];
     },
     enabled: isOpen && testCategory.id > 0
   });
 
   const submitTestMutation = useMutation({
     mutationFn: async (testData: any) => {
-      return await apiClient.post("/test-results", testData);
+      console.log('Mutation function called with data:', testData);
+      const response = await apiClient.post("/test-results", testData);
+      console.log('API response:', response);
+      return response;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      console.log('Mutation success with data:', data);
       setTestResult(data);
       setIsSubmitted(true);
-      queryClient.invalidateQueries({ queryKey: ["/api/test-results"] });
+      
+      // Invalidate and refetch test results
+      await queryClient.invalidateQueries({ queryKey: ["/test-results"] });
+      await queryClient.refetchQueries({ queryKey: ["/test-results"] });
+      
       toast({
         title: "Test Submitted",
         description: "Your test has been submitted successfully!"
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error('Test submission error:', error);
       toast({
         title: "Submission Failed",
         description: "There was an error submitting your test. Please try again.",
@@ -157,7 +169,8 @@ export default function TestModal({ isOpen, onOpenChange, testCategory }: TestMo
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          handleSubmitTest();
+          // Auto-submit when time runs out
+          handleSubmitTest(answers);
           return 0;
         }
         return prev - 1;
@@ -165,7 +178,7 @@ export default function TestModal({ isOpen, onOpenChange, testCategory }: TestMo
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isOpen, isSubmitted, testCategory]);
+  }, [isOpen, isSubmitted, testCategory, answers]);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -204,6 +217,19 @@ export default function TestModal({ isOpen, onOpenChange, testCategory }: TestMo
       setCurrentQuestionIndex(prev => prev + 1);
       setSelectedAnswer(answers[currentQuestionIndex + 1] || "");
     } else {
+      // Check if all questions are answered
+      const answeredQuestions = Object.keys(newAnswers).length;
+      const totalQuestions = questions.length;
+      
+      if (answeredQuestions < totalQuestions) {
+        toast({
+          title: "Incomplete Test",
+          description: `Please answer all ${totalQuestions} questions before submitting.`,
+          variant: "destructive"
+        });
+        return;
+      }
+      
       handleSubmitTest(newAnswers);
     }
   };
@@ -216,7 +242,17 @@ export default function TestModal({ isOpen, onOpenChange, testCategory }: TestMo
   };
 
   const handleSubmitTest = (finalAnswers = answers) => {
-    if (!questions) return;
+    if (!questions) {
+      console.error('No questions available for submission');
+      return;
+    }
+
+    console.log('Submitting test with data:', {
+      categoryId: testCategory.id,
+      questionsCount: questions.length,
+      answersCount: Object.keys(finalAnswers).length,
+      finalAnswers
+    });
 
     // Calculate score
     let correctCount = 0;
@@ -234,6 +270,7 @@ export default function TestModal({ isOpen, onOpenChange, testCategory }: TestMo
       feedback: generateFeedback(correctCount, questions.length)
     };
 
+    console.log('Submitting test data:', testData);
     submitTestMutation.mutate(testData);
   };
 
@@ -290,6 +327,31 @@ export default function TestModal({ isOpen, onOpenChange, testCategory }: TestMo
               margin: '0 auto 16px'
             }}></div>
             <p style={{ color: '#6b7280' }}>Loading test questions...</p>
+          </div>
+        </div>
+      </SimpleModal>
+    );
+  }
+
+  // Check if there are no questions
+  if (!questions || questions.length === 0) {
+    return (
+      <SimpleModal
+        isOpen={isOpen}
+        onClose={() => onOpenChange(false)}
+        title={`${testCategory.name} - No Questions Available`}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ 
+              fontSize: '48px',
+              color: '#9CA3AF',
+              marginBottom: '16px'
+            }}>
+              <i className="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 style={{ color: '#374151', marginBottom: '8px' }}>No Questions Available</h3>
+            <p style={{ color: '#6b7280' }}>This test category doesn't have any questions yet.</p>
           </div>
         </div>
       </SimpleModal>
@@ -514,17 +576,17 @@ export default function TestModal({ isOpen, onOpenChange, testCategory }: TestMo
             </button>
             <button
               onClick={handleNext}
-              disabled={submitTestMutation.isPending}
+              disabled={submitTestMutation.isPending || !selectedAnswer}
               style={{
                 padding: '12px 24px',
                 border: 'none',
                 borderRadius: '6px',
-                backgroundColor: '#3B82F6',
+                backgroundColor: submitTestMutation.isPending || !selectedAnswer ? '#9CA3AF' : '#3B82F6',
                 color: 'white',
-                cursor: submitTestMutation.isPending ? 'not-allowed' : 'pointer',
+                cursor: submitTestMutation.isPending || !selectedAnswer ? 'not-allowed' : 'pointer',
                 fontSize: '16px',
                 fontWeight: '500',
-                opacity: submitTestMutation.isPending ? 0.6 : 1
+                opacity: submitTestMutation.isPending || !selectedAnswer ? 0.6 : 1
               }}
             >
               {questions && currentQuestionIndex === questions.length - 1 ? (

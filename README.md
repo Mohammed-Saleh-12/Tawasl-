@@ -7,7 +7,7 @@ A comprehensive communication skills training platform that combines AI-powered 
 - 📚 **Educational Articles**: Searchable library of communication guides and tips
 - 🧪 **Interactive Tests**: Skills assessments with immediate feedback
 - 🎥 **Video Analysis**: AI-powered analysis of communication skills
-- 💬 **AI Chat Coach**: Interactive communication practice
+
 - ❓ **FAQ System**: Comprehensive help and guidance
 - 📊 **Progress Tracking**: Monitor improvement over time
 

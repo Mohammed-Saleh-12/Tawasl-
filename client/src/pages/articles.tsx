@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -105,22 +105,19 @@ export default function Articles() {
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [isArticleModalOpen, setIsArticleModalOpen] = useState(false);
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
 
   const isLoggedIn = typeof window !== 'undefined' && localStorage.getItem('platform_logged_in') === 'true';
 
-  const { data: articlesData, isLoading } = useQuery({
+  const { data: articles, isLoading, error } = useQuery<Article[]>({
     queryKey: ["/api/articles", search, category],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (search) params.append("search", search);
       if (category !== "All Categories") params.append("category", category);
-      
-      const response = await apiClient.get(`/articles?${params}`);
-      return response.articles || response;
+      return await apiClient.get(`/articles?${params}`);
     }
   });
-
-  const articles = Array.isArray(articlesData) ? articlesData : (articlesData?.articles || []);
 
   const categories = [
     "All Categories",
@@ -168,11 +165,11 @@ export default function Articles() {
     if (confirm(`Are you sure you want to delete "${article.title}"?`)) {
       try {
         await apiClient.delete(`/articles/${article.id}`);
-        // Refresh the articles list
-        window.location.reload();
-      } catch (error) {
+        // Refetch articles after deletion
+        queryClient.invalidateQueries({ queryKey: ["/api/articles"] });
+      } catch (error: any) {
         console.error('Error deleting article:', error);
-        alert('Error deleting article');
+        alert('Error deleting article: ' + (error?.response?.data?.error || error.message || error));
       }
     }
   };
@@ -215,18 +212,19 @@ export default function Articles() {
       )}
 
       {/* Page Header */}
-      <div className="mb-8">
+      <div className="text-center mb-12">
+        <h1 className="text-4xl font-bold text-gray-900 mb-4">Communication Skills Articles</h1>
+        <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
+          Learn from expert insights and practical guides to improve your communication abilities
+        </p>
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Articles</h1>
             <p className="text-gray-600 mt-2">Discover insights on communication and presentation skills</p>
           </div>
           {isLoggedIn && (
-            <Button 
-              onClick={() => setIsCreateModalOpen(true)} 
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2"
-            >
-              <i className="fas fa-plus"></i>
+            <Button onClick={() => setIsCreateModalOpen(true)} className="btn-primary">
+              <i className="fas fa-plus mr-2"></i>
               Add Article
             </Button>
           )}
@@ -317,20 +315,10 @@ export default function Articles() {
                   <div className="flex justify-end gap-2 mt-2">
                     {isLoggedIn && (
                       <>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={() => openArticleModal(article)}
-                          className="bg-white border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 transition-all duration-200"
-                        >
+                        <Button size="sm" variant="outline" onClick={() => openArticleModal(article)}>
                           <i className="fas fa-edit mr-1"></i> Edit
                         </Button>
-                        <Button 
-                          size="sm" 
-                          variant="destructive" 
-                          onClick={(e) => handleDeleteClick(article, e)}
-                          className="bg-red-600 hover:bg-red-700 text-white border-red-600 hover:border-red-700 transition-all duration-200"
-                        >
+                        <Button size="sm" variant="destructive" onClick={(e) => handleDeleteClick(article, e)}>
                           <i className="fas fa-trash mr-1"></i> Delete
                         </Button>
                       </>

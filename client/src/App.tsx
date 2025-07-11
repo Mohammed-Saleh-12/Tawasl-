@@ -14,6 +14,7 @@ import Header from "@/components/layout/header";
 import Footer from "@/components/layout/footer";
 import Login from "@/pages/login";
 import { AuthProvider, useAuth } from "@/lib/auth";
+import { useEffect } from "react";
 
 function Router() {
   const { isLoggedIn } = useAuth();
@@ -22,15 +23,15 @@ function Router() {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {!isLoggedIn && <Header />}
       <div className="flex-1">
-      <Switch>
-        <Route path="/" component={Home} />
-        <Route path="/articles" component={Articles} />
-        <Route path="/tests" component={Tests} />
-        <Route path="/faq" component={FAQ} />
-        <Route path="/video-practice" component={VideoPractice} />
-        <Route path="/login" component={Login} />
-        <Route component={NotFound} />
-      </Switch>
+        <Switch>
+          <Route path="/" component={Home} />
+          <Route path="/articles" component={Articles} />
+          <Route path="/tests" component={Tests} />
+          <Route path="/faq" component={FAQ} />
+          <Route path="/video-practice" component={VideoPractice} />
+          <Route path="/login" component={Login} />
+          <Route component={NotFound} />
+        </Switch>
       </div>
       <Footer />
     </div>

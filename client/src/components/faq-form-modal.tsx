@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiClient } from "@/lib/api";
 
@@ -17,7 +19,7 @@ interface FAQFormModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   faq?: FAQ;
-  mode?: 'create' | 'edit';
+  mode: 'create' | 'edit';
 }
 
 const categories = [
@@ -31,104 +33,7 @@ const categories = [
   'active-listening'
 ];
 
-// Simple Modal Component with completely white interface
-function SimpleModal({ isOpen, onClose, title, children }: {
-  isOpen: boolean;
-  onClose: () => void;
-  title: string;
-  children: React.ReactNode;
-}) {
-  if (!isOpen) return null;
-
-  return (
-    <div 
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100vw',
-        height: '100vh',
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
-        zIndex: 99999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backdropFilter: 'blur(4px)'
-      }}
-      onClick={onClose}
-    >
-      <div 
-        style={{
-          backgroundColor: '#ffffff',
-          padding: '32px',
-          borderRadius: '12px',
-          maxWidth: '600px',
-          width: '95%',
-          maxHeight: '90vh',
-          overflow: 'auto',
-          position: 'relative',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-          border: '1px solid #e5e7eb'
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          marginBottom: '24px', 
-          borderBottom: '2px solid #e5e7eb', 
-          paddingBottom: '20px',
-          backgroundColor: '#ffffff'
-        }}>
-          <h2 style={{ 
-            fontSize: '28px', 
-            fontWeight: 'bold', 
-            margin: 0, 
-            color: '#111827',
-            textShadow: 'none',
-            backgroundColor: '#ffffff'
-          }}>
-            {title}
-          </h2>
-          <button 
-            onClick={onClose}
-            style={{
-              background: '#f3f4f6',
-              border: '1px solid #d1d5db',
-              borderRadius: '50%',
-              fontSize: '20px',
-              cursor: 'pointer',
-              padding: '8px',
-              width: '40px',
-              height: '40px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#6b7280',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = '#e5e7eb';
-              e.currentTarget.style.color = '#374151';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = '#f3f4f6';
-              e.currentTarget.style.color = '#6b7280';
-            }}
-          >
-            ×
-          </button>
-        </div>
-        <div style={{ backgroundColor: '#ffffff' }}>
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function FAQFormModal({ isOpen, onOpenChange, faq, mode = 'create' }: FAQFormModalProps) {
+export default function FAQFormModal({ isOpen, onOpenChange, faq, mode }: FAQFormModalProps) {
   const [formData, setFormData] = useState<FAQ>({
     question: faq?.question || '',
     answer: faq?.answer || '',
@@ -162,7 +67,7 @@ export default function FAQFormModal({ isOpen, onOpenChange, faq, mode = 'create
 
   const updateMutation = useMutation({
     mutationFn: async (data: FAQ) => {
-      return await apiClient.put(`/faqs/${faq?.id}`, data);
+      return await apiClient.put(`/api/faqs/${faq?.id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/faqs'] });
@@ -183,7 +88,6 @@ export default function FAQFormModal({ isOpen, onOpenChange, faq, mode = 'create
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!formData.question.trim() || !formData.answer.trim()) {
       toast({
         title: "Validation Error",
@@ -192,10 +96,17 @@ export default function FAQFormModal({ isOpen, onOpenChange, faq, mode = 'create
       });
       return;
     }
-
     if (mode === 'create') {
       createMutation.mutate(formData);
     } else {
+      if (!faq?.id) {
+        toast({
+          title: "Error",
+          description: "Cannot update FAQ: missing FAQ ID.",
+          variant: "destructive"
+        });
+        return;
+      }
       updateMutation.mutate(formData);
     }
   };
@@ -205,160 +116,79 @@ export default function FAQFormModal({ isOpen, onOpenChange, faq, mode = 'create
   };
 
   return (
-    <SimpleModal
-      isOpen={isOpen}
-      onClose={() => onOpenChange(false)}
-      title={mode === 'create' ? 'Add New FAQ' : 'Edit FAQ'}
-    >
-      <form onSubmit={handleSubmit} style={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        gap: '24px',
-        backgroundColor: '#ffffff'
-      }}>
-        <div style={{ backgroundColor: '#ffffff' }}>
-          <label style={{ 
-            display: 'block', 
-            marginBottom: '8px', 
-            fontWeight: 'bold', 
-            color: '#374151',
-            backgroundColor: '#ffffff'
-          }}>
-            Category
-          </label>
-          <select
-            value={formData.category}
-            onChange={(e) => handleInputChange('category', e.target.value)}
-            style={{
-              width: '100%',
-              padding: '12px 16px',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              fontSize: '16px',
-              backgroundColor: '#ffffff',
-              color: '#374151'
-            }}
-          >
-            {categories.map((category) => (
-              <option key={category} value={category} style={{ backgroundColor: '#ffffff' }}>
-                {category.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div style={{ backgroundColor: '#ffffff' }}>
-          <label style={{ 
-            display: 'block', 
-            marginBottom: '8px', 
-            fontWeight: 'bold', 
-            color: '#374151',
-            backgroundColor: '#ffffff'
-          }}>
-            Question *
-          </label>
-          <input
-            type="text"
-            value={formData.question}
-            onChange={(e) => handleInputChange('question', e.target.value)}
-            placeholder="Enter the question..."
-            required
-            style={{
-              width: '100%',
-              padding: '12px 16px',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              fontSize: '16px',
-              backgroundColor: '#ffffff',
-              color: '#374151'
-            }}
-          />
-        </div>
-
-        <div style={{ backgroundColor: '#ffffff' }}>
-          <label style={{ 
-            display: 'block', 
-            marginBottom: '8px', 
-            fontWeight: 'bold', 
-            color: '#374151',
-            backgroundColor: '#ffffff'
-          }}>
-            Answer *
-          </label>
-          <textarea
-            value={formData.answer}
-            onChange={(e) => handleInputChange('answer', e.target.value)}
-            placeholder="Enter the answer..."
-            rows={6}
-            required
-            style={{
-              width: '100%',
-              padding: '12px 16px',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              fontSize: '16px',
-              backgroundColor: '#ffffff',
-              color: '#374151',
-              resize: 'vertical',
-              minHeight: '120px'
-            }}
-          />
-        </div>
-
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'flex-end', 
-          gap: '12px', 
-          marginTop: '20px',
-          backgroundColor: '#ffffff'
-        }}>
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            disabled={createMutation.isPending || updateMutation.isPending}
-            style={{
-              padding: '12px 24px',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              backgroundColor: '#ffffff',
-              color: '#374151',
-              cursor: (createMutation.isPending || updateMutation.isPending) ? 'not-allowed' : 'pointer',
-              fontSize: '16px',
-              fontWeight: '500',
-              opacity: (createMutation.isPending || updateMutation.isPending) ? 0.6 : 1
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={createMutation.isPending || updateMutation.isPending}
-            style={{
-              padding: '12px 24px',
-              border: 'none',
-              borderRadius: '6px',
-              backgroundColor: '#3B82F6',
-              color: 'white',
-              cursor: (createMutation.isPending || updateMutation.isPending) ? 'not-allowed' : 'pointer',
-              fontSize: '16px',
-              fontWeight: '500',
-              opacity: (createMutation.isPending || updateMutation.isPending) ? 0.6 : 1
-            }}
-          >
-            {(createMutation.isPending || updateMutation.isPending) ? (
-              <>
-                <i className="fas fa-spinner fa-spin" style={{ marginRight: '8px' }}></i>
-                {mode === 'create' ? 'Creating...' : 'Updating...'}
-              </>
-            ) : (
-              <>
-                <i className="fas fa-save" style={{ marginRight: '8px' }}></i>
-                {mode === 'create' ? 'Create FAQ' : 'Update FAQ'}
-              </>
-            )}
-          </button>
-        </div>
-      </form>
-    </SimpleModal>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl bg-white">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-bold">
+            {mode === 'create' ? 'Add New FAQ' : 'Edit FAQ'}
+          </DialogTitle>
+          <DialogDescription>
+            {mode === 'create' ? 'Fill out the form to add a new FAQ entry.' : 'Edit the fields and save to update this FAQ.'}
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Category</label>
+            <Select value={formData.category} onValueChange={(value) => handleInputChange('category', value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a category" />
+              </SelectTrigger>
+              <SelectContent className="bg-white">
+                {categories.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Question *</label>
+            <Input
+              value={formData.question}
+              onChange={(e) => handleInputChange('question', e.target.value)}
+              placeholder="Enter the question..."
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Answer *</label>
+            <Textarea
+              value={formData.answer}
+              onChange={(e) => handleInputChange('answer', e.target.value)}
+              placeholder="Enter the answer..."
+              rows={6}
+              required
+            />
+          </div>
+          <div className="flex justify-end space-x-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={createMutation.isPending || updateMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={createMutation.isPending || updateMutation.isPending}
+            >
+              {createMutation.isPending || updateMutation.isPending ? (
+                <>
+                  <i className="fas fa-spinner fa-spin mr-2"></i>
+                  {mode === 'create' ? 'Creating...' : 'Updating...'}
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-save mr-2"></i>
+                  {mode === 'create' ? 'Create FAQ' : 'Update FAQ'}
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 } 

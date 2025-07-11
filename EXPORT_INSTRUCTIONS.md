@@ -66,7 +66,7 @@ If you prefer to copy files manually:
 - 15 comprehensive test questions across 3 categories
 - 8 detailed FAQ entries
 - Video analysis simulation
-- AI chat interface
+
 
 ✅ **Production Ready**
 - Build scripts for deployment
@@ -94,7 +94,7 @@ If you prefer to copy files manually:
 1. **Customize Content**: Edit the seed data in `server/seed.ts`
 2. **Add Features**: The architecture supports easy extension
 3. **Deploy**: Follow DEPLOYMENT.md for production deployment
-4. **Integrate APIs**: Add real AI services for video analysis and chat
+4. **Integrate APIs**: Add real AI services for video analysis
 
 ## Troubleshooting
 

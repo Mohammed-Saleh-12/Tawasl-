@@ -52,11 +52,7 @@ Database is automatically seeded with sample content on startup including 5 comp
 - Scenario-based practice (job interviews, presentations, difficult conversations)
 - Detailed feedback reports with scoring metrics
 
-### 4. AI Chat Integration
-- Interactive AI communication coach
-- Practice conversations with adaptive difficulty
-- Real-time feedback on communication patterns
-- Scenario-specific coaching (interviews, presentations, etc.)
+
 
 ### 5. FAQ System
 - Categorized frequently asked questions
@@ -76,7 +72,7 @@ Database is automatically seeded with sample content on startup including 5 comp
    - Browser-based video recording
    - Client-side processing (mock AI analysis)
    - Results stored and displayed with metrics
-5. **AI Chat**: Real-time conversation with mock AI responses
+
 
 ## External Dependencies
 

@@ -45,7 +45,7 @@ npm run dev
 - Educational articles system with search/categories
 - Interactive skill assessments with 15+ questions
 - Video analysis with AI feedback simulation
-- AI chat interface for practice conversations
+
 - FAQ system with categorized content
 - Progress tracking and results storage
 - Responsive design with dark/light themes

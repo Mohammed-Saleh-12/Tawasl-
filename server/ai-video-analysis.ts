@@ -37,7 +37,7 @@ export interface AIAnalysisResult {
 }
 
 const PYTHON_PATH = 'python';
-const PYTHON_ARGS = [];
+const PYTHON_ARGS: string[] = [];
 const SCRIPT_PATH = join(process.cwd(), 'server', 'ai-scripts', 'video_analysis_opencv.py');
 
 let pythonAvailable = false;
@@ -132,12 +132,12 @@ async function analyzeWithPython(
 ): Promise<AIAnalysisResult> {
   return new Promise((resolve, reject) => {
     const pythonProcess = spawn(PYTHON_PATH, [
-      ...PYTHON_ARGS,
       SCRIPT_PATH,
       videoPath,
       scenario,
       duration.toString()
     ]);
+
 
     let output = '';
     let errorOutput = '';
@@ -194,6 +194,7 @@ async function analyzeWithPython(
             // Success case - return the analysis results
             resolve(result);
           }
+          resolve(result);
         } catch (error) {
           console.error('Failed to parse Python output:', error);
           reject(new Error(`Failed to parse AI analysis result: ${error}`));

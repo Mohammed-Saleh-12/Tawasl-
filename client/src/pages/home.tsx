@@ -108,7 +108,6 @@ export default function Home() {
           <img src="https://img.icons8.com/color/480/000000/communication.png" alt="Platform Illustration" className="w-64 h-64 object-contain mx-auto md:mx-0 flex-shrink-0" />
         </div>
       </section>
-      
       {/* Feature Cards Section - Enhanced Layout */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {/* Section Header */}
@@ -118,7 +117,6 @@ export default function Home() {
             Discover powerful tools designed to enhance your communication and presentation skills
           </p>
         </div>
-
         {/* Cards Grid - Optimized for 4 cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8 lg:gap-10">
           <Link href="/articles">
@@ -136,7 +134,6 @@ export default function Home() {
               </div>
             </div>
           </Link>
-
           <Link href="/tests">
             <div className="bg-white rounded-3xl p-8 flex flex-col items-center text-center cursor-pointer group border border-gray-100 hover:border-green-300 transition-all duration-500 shadow-lg hover:shadow-2xl transform hover:-translate-y-2 h-full">
               <div className="w-20 h-20 gradient-secondary rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110">
@@ -152,7 +149,6 @@ export default function Home() {
               </div>
             </div>
           </Link>
-
           <Link href="/faq">
             <div className="bg-white rounded-3xl p-8 flex flex-col items-center text-center cursor-pointer group border border-gray-100 hover:border-pink-300 transition-all duration-500 shadow-lg hover:shadow-2xl transform hover:-translate-y-2 h-full">
               <div className="w-20 h-20 bg-gradient-to-br from-pink-100 to-pink-200 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110">
@@ -168,46 +164,23 @@ export default function Home() {
               </div>
             </div>
           </Link>
-
           <Link href="/video-practice">
             <div className="bg-white rounded-3xl p-8 flex flex-col items-center text-center cursor-pointer group border border-gray-100 hover:border-red-300 transition-all duration-500 shadow-lg hover:shadow-2xl transform hover:-translate-y-2 h-full">
               <div className="w-20 h-20 bg-gradient-to-br from-red-100 to-red-200 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110">
                 <i className="fas fa-video text-3xl text-red-500 group-hover:text-red-400 transition-all duration-300"></i>
               </div>
-              <h3 className="text-2xl font-bold text-blue-700 mb-4 group-hover:text-blue-800 transition-colors">Video Analysis</h3>
+              <h3 className="text-2xl font-bold text-blue-700 mb-4 group-hover:text-blue-800 transition-colors">Video Practice</h3>
               <p className="text-gray-600 text-base leading-relaxed font-medium mb-6 flex-grow">
-                Get instant AI-powered feedback on your presentation skills and improve your performance
+                Practice your communication skills with AI-powered video analysis and feedback
               </p>
               <div className="flex items-center text-blue-600 font-semibold group-hover:text-blue-700 transition-colors">
-                <span>Try Analysis</span>
+                <span>Try Video Practice</span>
                 <i className="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
               </div>
             </div>
           </Link>
         </div>
       </main>
-
-      {/* Footer Section */}
-      <footer className="bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200 py-12 mt-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <div className="flex items-center justify-center space-x-4 mb-6">
-              <div className="w-12 h-12 gradient-primary rounded-xl flex items-center justify-center shadow-md">
-                <i className="fas fa-comments text-white text-2xl"></i>
-              </div>
-              <h3 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-                Tawasl
-              </h3>
-            </div>
-            <p className="text-gray-600 text-lg mb-4">
-              Empowering communication excellence through innovative learning tools
-            </p>
-            <p className="text-gray-500 text-sm">
-              © 2025 Tawasl Platform. All rights reserved.
-            </p>
-          </div>
-        </div>
-      </footer>
     </>
   );
 }

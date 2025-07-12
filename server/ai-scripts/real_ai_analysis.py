@@ -34,13 +34,29 @@ class RealVideoAnalyzer:
         self.gesture_counts = {'open_palm': 0, 'fist': 0, 'other': 0}
         self.head_pose_counts = {'forward': 0, 'left': 0, 'right': 0, 'up': 0, 'down': 0}
         self.posture_quality_counts = {'confident': 0, 'slouching': 0, 'leaning_left': 0, 'leaning_right': 0, 'arms_crossed': 0}
-        # Initialize MediaPipe models
+        # Initialize MediaPipe models with more robust settings
         self.mp_face = mp.solutions.face_mesh
         self.mp_hands = mp.solutions.hands
         self.mp_pose = mp.solutions.pose
-        self.face_mesh = self.mp_face.FaceMesh(static_image_mode=False, max_num_faces=2)
-        self.hands = self.mp_hands.Hands(static_image_mode=False, max_num_hands=2)
-        self.pose = self.mp_pose.Pose(static_image_mode=False)
+        # More robust face detection settings
+        self.face_mesh = self.mp_face.FaceMesh(
+            static_image_mode=False, 
+            max_num_faces=2,
+            refine_landmarks=True,  # Enable refined landmarks for better accuracy
+            min_detection_confidence=0.5,  # Lower threshold for better detection
+            min_tracking_confidence=0.5
+        )
+        self.hands = self.mp_hands.Hands(
+            static_image_mode=False, 
+            max_num_hands=2,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5
+        )
+        self.pose = self.mp_pose.Pose(
+            static_image_mode=False,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5
+        )
         self.no_face_frames = 0
         self.multi_face_frames = 0
         self.total_frames = 0
@@ -48,6 +64,7 @@ class RealVideoAnalyzer:
         self.eye_contact_frames = 0
         self.hand_detected_frames = 0
         self.good_posture_frames = 0
+        self.low_resolution_mode = False # Added for adaptive sampling
         
     def analyze_video(self, video_path: str, scenario: str, duration: float) -> Dict[str, Any]:
         """Main analysis function with realistic video analysis using MediaPipe"""
@@ -67,7 +84,26 @@ class RealVideoAnalyzer:
                 cap = cv2.VideoCapture(video_path)
                 fps = cap.get(cv2.CAP_PROP_FPS) or 30
                 total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                sample_frames = min(50, max(10, total_frames // 10))
+                
+                # Get video resolution for adaptive analysis
+                width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                resolution = width * height
+                
+                # Adaptive sampling based on resolution
+                if resolution < 640 * 480:  # Low resolution (VGA or lower)
+                    sample_frames = min(30, max(5, total_frames // 5))  # More samples for low-res
+                    self.low_resolution_mode = True
+                    print(f"[AI Analysis] Low resolution detected: {width}x{height}, using adaptive sampling", file=sys.stderr)
+                elif resolution < 1280 * 720:  # Medium resolution
+                    sample_frames = min(40, max(8, total_frames // 8))
+                    self.low_resolution_mode = False
+                else:  # High resolution
+                    sample_frames = min(50, max(10, total_frames // 10))
+                    self.low_resolution_mode = False
+                
+                print(f"[AI Analysis] Video: {width}x{height}, {total_frames} frames, sampling {sample_frames} frames", file=sys.stderr)
+                
                 for i in range(sample_frames):
                     frame_idx = int(i * total_frames / sample_frames)
                     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
@@ -99,54 +135,101 @@ class RealVideoAnalyzer:
                 self.gesture_data.append(65)
                 self.posture_data.append(80)
                 return
+            
             # Convert BGR to RGB
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            # Face detection
+            
+            # Get frame dimensions for debugging
+            height, width = rgb_frame.shape[:2]
+            resolution = width * height
+            
+            # Adaptive processing for low resolution
+            if hasattr(self, 'low_resolution_mode') and self.low_resolution_mode:
+                # For low-res videos, be more lenient with detection
+                face_confidence_threshold = 0.3  # Lower threshold for low-res
+                pose_visibility_threshold = 0.6   # Lower threshold for low-res
+                eye_threshold = 0.012            # More lenient eye detection
+            else:
+                # Standard thresholds for higher resolution
+                face_confidence_threshold = 0.5
+                pose_visibility_threshold = 0.8
+                eye_threshold = 0.015
+            
+            # Face detection with enhanced debugging
             face_results = self.face_mesh.process(rgb_frame)
             num_faces = len(face_results.multi_face_landmarks) if face_results.multi_face_landmarks else 0
+            
+            # Debug information
+            if self.total_frames < 5:  # Only log first few frames to avoid spam
+                print(f"[DEBUG] Frame {self.total_frames}: {width}x{height}, faces detected: {num_faces}, low-res mode: {getattr(self, 'low_resolution_mode', False)}", file=sys.stderr)
+            
             confident_face = False
             confident_eye = False
             confident_hand = False
             confident_posture = False
             eyes_open = False
             gaze_forward = False
-            # Face detection with confidence threshold
+            
+            # Enhanced face detection with adaptive thresholds
             if num_faces > 0 and face_results.multi_face_landmarks:
                 confident_face = True
                 self.face_detected_frames += 1
                 face_landmarks = face_results.multi_face_landmarks[0]
-                # Eye open detection (left: 159-145, right: 386-374)
-                left_eye_top = face_landmarks.landmark[159]
-                left_eye_bottom = face_landmarks.landmark[145]
-                right_eye_top = face_landmarks.landmark[386]
-                right_eye_bottom = face_landmarks.landmark[374]
-                left_eye_open = abs(left_eye_top.y - left_eye_bottom.y) > 0.015
-                right_eye_open = abs(right_eye_top.y - right_eye_bottom.y) > 0.015
-                eyes_open = left_eye_open and right_eye_open
-                # Gaze direction (iris center between eye corners)
-                left_iris = face_landmarks.landmark[468]
-                right_iris = face_landmarks.landmark[473]
-                left_eye_outer = face_landmarks.landmark[33]
-                left_eye_inner = face_landmarks.landmark[133]
-                right_eye_inner = face_landmarks.landmark[362]
-                right_eye_outer = face_landmarks.landmark[263]
-                left_gaze_centered = left_eye_outer.x < left_iris.x < left_eye_inner.x
-                right_gaze_centered = right_eye_inner.x < right_iris.x < right_eye_outer.x
-                gaze_forward = left_gaze_centered and right_gaze_centered
-                # Eye contact: only if both eyes open and gaze forward
-                if eyes_open and gaze_forward:
-                    confident_eye = True
-                    self.eye_contact_frames += 1
+                
+                try:
+                    # Eye open detection with adaptive thresholds
+                    left_eye_top = face_landmarks.landmark[159]
+                    left_eye_bottom = face_landmarks.landmark[145]
+                    right_eye_top = face_landmarks.landmark[386]
+                    right_eye_bottom = face_landmarks.landmark[374]
+                    
+                    left_eye_open = abs(left_eye_top.y - left_eye_bottom.y) > eye_threshold
+                    right_eye_open = abs(right_eye_top.y - right_eye_bottom.y) > eye_threshold
+                    eyes_open = left_eye_open and right_eye_open
+                    
+                    # Gaze direction with more robust landmark access
+                    left_iris = face_landmarks.landmark[468]
+                    right_iris = face_landmarks.landmark[473]
+                    left_eye_outer = face_landmarks.landmark[33]
+                    left_eye_inner = face_landmarks.landmark[133]
+                    right_eye_inner = face_landmarks.landmark[362]
+                    right_eye_outer = face_landmarks.landmark[263]
+                    
+                    left_gaze_centered = left_eye_outer.x < left_iris.x < left_eye_inner.x
+                    right_gaze_centered = right_eye_inner.x < right_iris.x < right_eye_outer.x
+                    gaze_forward = left_gaze_centered and right_gaze_centered
+                    
+                    # Eye contact: more lenient for low-res videos
+                    if eyes_open and gaze_forward:
+                        confident_eye = True
+                        self.eye_contact_frames += 1
+                    elif hasattr(self, 'low_resolution_mode') and self.low_resolution_mode and eyes_open:
+                        # For low-res, accept eye contact if eyes are open (more lenient)
+                        confident_eye = True
+                        self.eye_contact_frames += 1
+                        
+                except (IndexError, AttributeError) as e:
+                    # If landmark access fails, still count as face detected but not confident eye
+                    if self.total_frames < 5:
+                        print(f"[DEBUG] Landmark access error: {e}", file=sys.stderr)
+                    confident_eye = False
             else:
                 self.no_face_frames += 1
+                if self.total_frames < 5:
+                    print(f"[DEBUG] No face detected in frame {self.total_frames}", file=sys.stderr)
+                    
             if num_faces > 1:
                 self.multi_face_frames += 1
-            # Hand detection with confidence threshold
+                if self.total_frames < 5:
+                    print(f"[DEBUG] Multiple faces detected: {num_faces}", file=sys.stderr)
+                    
+            # Hand detection with adaptive confidence threshold
             hand_results = self.hands.process(rgb_frame)
             if hand_results.multi_hand_landmarks:
                 confident_hand = True
                 self.hand_detected_frames += 1
-            # Posture detection with confidence threshold
+                
+            # Posture detection with adaptive visibility threshold
             pose_results = self.pose.process(rgb_frame)
             if pose_results.pose_landmarks:
                 left_shoulder = pose_results.pose_landmarks.landmark[11]
@@ -157,15 +240,32 @@ class RealVideoAnalyzer:
                 right_elbow = pose_results.pose_landmarks.landmark[14]
                 left_wrist = pose_results.pose_landmarks.landmark[15]
                 right_wrist = pose_results.pose_landmarks.landmark[16]
-                if all(lm.visibility > 0.8 for lm in [left_shoulder, right_shoulder, left_hip, right_hip]):
+                
+                # Use adaptive visibility threshold
+                if all(lm.visibility > pose_visibility_threshold for lm in [left_shoulder, right_shoulder, left_hip, right_hip]):
                     confident_posture = True
                     self.good_posture_frames += 1
-            # Scoring: only give nonzero if confident detection
+                    
+            # Adaptive scoring based on resolution
+            if hasattr(self, 'low_resolution_mode') and self.low_resolution_mode:
+                # For low-res videos, be more generous with scoring
+                face_score = 100 if confident_face else 50  # Partial credit for face detection
+                eye_score = 100 if confident_eye else (50 if confident_face else 0)  # Partial credit if face detected
+                hand_score = 100 if confident_hand else 30  # Lower threshold for hands
+                posture_score = 100 if confident_posture else 40  # Lower threshold for posture
+            else:
+                # Standard scoring for higher resolution
+                face_score = 100 if confident_face else 0
+                eye_score = 100 if confident_eye else 0
+                hand_score = 100 if confident_hand else 0
+                posture_score = 100 if confident_posture else 0
+                
+            # Overall score calculation
             self.overall_scores.append(25 * int(confident_face) + 25 * int(confident_eye) + 25 * int(confident_hand) + 25 * int(confident_posture))
-            self.eye_contact_scores.append(100 if confident_eye else 0)
-            self.facial_expression_scores.append(100 if confident_face else 0)
-            self.gesture_scores.append(100 if confident_hand else 0)
-            self.posture_scores.append(100 if confident_posture else 0)
+            self.eye_contact_scores.append(eye_score)
+            self.facial_expression_scores.append(face_score)
+            self.gesture_scores.append(hand_score)
+            self.posture_scores.append(posture_score)
             # Store data
             self.frame_analysis_data.append({
                 'time': frame_time,
@@ -310,57 +410,85 @@ class RealVideoAnalyzer:
                 overall_score, eye_contact_score, facial_expression_score,
                 gesture_score, posture_score, scenario
             )
-            
-            # Add warnings for no face or multiple faces
-            if self.no_face_frames > self.total_frames * 0.5:
-                feedback.append("No face detected in most of the video. Please ensure your face is clearly visible to the camera.")
-            if self.multi_face_frames > 0:
-                feedback.append("Multiple faces detected in the video. Please record alone for best results.")
-            
+        
             # Calculate detection rates
             face_rate = self.face_detected_frames / self.total_frames if self.total_frames else 0
             eye_rate = self.eye_contact_frames / self.total_frames if self.total_frames else 0
             hand_rate = self.hand_detected_frames / self.total_frames if self.total_frames else 0
             posture_rate = self.good_posture_frames / self.total_frames if self.total_frames else 0
-            # Log detection rates
-            print(f"[AI Analysis] Face visible: {face_rate:.2f}, Eye contact: {eye_rate:.2f}, Hands: {hand_rate:.2f}, Posture: {posture_rate:.2f}")
             
-            # If no face detected in most frames, force all scores to zero and feedback to only the warning
-            if face_rate < 0.2:
-                feedback = ["No face detected in most of the video. Please ensure your face is clearly visible to the camera."]
+            # Enhanced logging with more detailed information
+            print(f"[AI Analysis] Total frames: {self.total_frames}, Face visible: {face_rate:.2f}, Eye contact: {eye_rate:.2f}, Hands: {hand_rate:.2f}, Posture: {posture_rate:.2f}", file=sys.stderr)
+            print(f"[AI Analysis] No face frames: {self.no_face_frames}, Multi-face frames: {self.multi_face_frames}", file=sys.stderr)
+            if hasattr(self, 'low_resolution_mode'):
+                print(f"[AI Analysis] Low resolution mode: {self.low_resolution_mode}", file=sys.stderr)
+            
+            # Adaptive face detection threshold based on resolution
+            face_detection_threshold = 0.1 if hasattr(self, 'low_resolution_mode') and self.low_resolution_mode else 0.2
+            
+            # If no face detected in most frames, provide detailed feedback
+            if face_rate < face_detection_threshold:
+                if hasattr(self, 'low_resolution_mode') and self.low_resolution_mode:
+                    detailed_feedback = [
+                        "Low resolution video detected. Face detection was limited. Please ensure:",
+                        "• Your face is clearly visible and well-lit",
+                        "• You are facing the camera directly",
+                        "• Your face takes up a larger portion of the frame",
+                        "• Try recording in a well-lit environment",
+                        "• Consider using a higher resolution camera if possible",
+                        "• For best results, use at least 480p resolution"
+                    ]
+                else:
+                    detailed_feedback = [
+                        "No face detected in most of the video. Please ensure:",
+                        "• Your face is clearly visible and well-lit",
+                        "• You are facing the camera directly",
+                        "• Your face takes up a reasonable portion of the frame",
+                        "• The video quality is adequate (at least 480p)",
+                        "• You are recording alone (no other faces in frame)",
+                        "• Try recording in a well-lit environment"
+                    ]
                 return {
                     "overallScore": 0,
                     "eyeContactScore": 0,
                     "facialExpressionScore": 0,
                     "gestureScore": 0,
                     "postureScore": 0,
-                    "feedback": feedback,
+                    "feedback": detailed_feedback,
                     "confidence": 0.85,
                     "analysisDetails": {
                         "eyeContact": {
-                            "percentage": eye_contact_score,
-                            "duration": duration * (eye_contact_score / 100),
-                            "consistency": eye_contact_score
+                            "percentage": 0,
+                            "duration": 0,
+                            "consistency": 0
                         },
                         "facialExpressions": {
-                            "emotions": {"confidence": facial_expression_score, "engagement": facial_expression_score},
-                            "confidence": facial_expression_score,
-                            "engagement": facial_expression_score
+                            "emotions": {"confidence": 0, "engagement": 0},
+                            "confidence": 0,
+                            "engagement": 0
                         },
                         "gestures": {
-                            "frequency": gesture_score / 10,
-                            "appropriateness": gesture_score,
-                            "variety": gesture_score / 2
+                            "frequency": 0,
+                            "appropriateness": 0,
+                            "variety": 0
                         },
                         "posture": {
-                            "confidence": posture_score,
-                            "stability": posture_score,
-                            "professionalism": posture_score
+                            "confidence": 0,
+                            "stability": 0,
+                            "professionalism": 0
                         },
                         "analysisMethod": "Real AI Analysis (Python 3.13)",
                         "framesAnalyzed": len(self.frame_analysis_data),
                         "scenario": scenario,
                         "duration": duration,
+                        "detectionStats": {
+                            "totalFrames": self.total_frames,
+                            "faceDetectedFrames": self.face_detected_frames,
+                            "noFaceFrames": self.no_face_frames,
+                            "multiFaceFrames": self.multi_face_frames,
+                            "faceDetectionRate": face_rate,
+                            "lowResolutionMode": getattr(self, 'low_resolution_mode', False)
+                        },
                         "emotions": {
                             "dominant": 'neutral',
                             "dominant_percent": 0,

@@ -1,4 +1,5 @@
 opencv-python
-mediapipe==0.10.7
-numpy==1.24.3
-ultralytics==8.0.178 
+mediapipe
+numpy
+ultralytics 
+yolov8

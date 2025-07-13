@@ -82,12 +82,17 @@ class RealVideoAnalyzer:
             if video_exists:
                 # Real video analysis - process frames
                 cap = cv2.VideoCapture(video_path)
-                fps = cap.get(cv2.CAP_PROP_FPS) or 30
-                total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                if not cap.isOpened():
+                    print(f"[ERROR] Could not open video file: {video_path}", file=sys.stderr)
+                    return self.generate_enhanced_mock_analysis(scenario, duration)
+                else:
+                    print(f"[INFO] Opened video file: {video_path}", file=sys.stderr)
+                    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    print(f"[INFO] Total frames: {total_frames}, Resolution: {width}x{height}", file=sys.stderr)
                 
                 # Get video resolution for adaptive analysis
-                width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                 resolution = width * height
                 
                 # Adaptive sampling based on resolution

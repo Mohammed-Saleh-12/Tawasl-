@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: educational-network
+    env: node
+    buildCommand: |
+      npm install
+      npm run build
+      python3.13 -m pip install --upgrade pip
+      python3.13 -m pip install -r server/ai-scripts/requirements.txt
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      - key: PYTHONPATH
+        value: /opt/render/project/src/server/ai-scripts 

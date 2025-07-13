@@ -405,23 +405,41 @@ router.delete('/test-questions/:id', async (req, res) => {
 // --- TEST RESULTS CRUD ---
 // POST /api/test-results
 
-  router.post("/api/test-results", async (req, res) => {
-    try {
-      const resultSchema = z.object({
-        userId: z.number().optional(),
-        categoryId: z.number(),
-        score: z.number(),
-        totalQuestions: z.number(),
-        answers: z.record(z.string()),
-        feedback: z.string().optional()
-      });
-
+  router.post('/test-results', async (req, res) => {
+  console.log('POST /api/test-results called with body:', req.body);
+  try {
+    const { categoryId, score, totalQuestions, answers, feedback } = req.body;
+    if (!categoryId || typeof score !== 'number' || !totalQuestions || !answers) {
+      console.log('Validation failed:', { categoryId, score, totalQuestions, answers });
+      return res.status(400).json({ error: 'All fields are required: categoryId, score, totalQuestions, answers' });
+    }
+    console.log('Creating test result with data:', { categoryId, score, totalQuestions, answers, feedback });
+    
+    // Log the exact data being passed to createTestResult
+    const testResultData = { 
+      categoryId, 
+      score, 
+      totalQuestions, 
+      answers, 
+      feedback: feedback || '',
+      userId: 0 // Default user ID for now
+    };
     console.log('Test result data to be inserted:', testResultData);
-    let data = resultSchema.parse(req.body);
-      // Automatically assign a unified user ID if not provided
-      if (!data.userId) {
-        data = { ...data, userId: 1 }; // Use 1 as the default user ID
-      }
+    
+    const newResult = await storage.createTestResult(testResultData);
+    console.log('Test result created successfully:', newResult);
+    res.status(201).json(newResult);
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    console.error('Error creating test result:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to create test result', 
+      details: error.message,
+      stack: error.stack 
+    });
+  }
+});
     const newResult = await storage.createTestResult(testResultData);
     console.log('Test result created successfully:', newResult);
     res.status(201).json(newResult);

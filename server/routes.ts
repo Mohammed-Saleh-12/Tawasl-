@@ -429,9 +429,6 @@ router.delete('/test-questions/:id', async (req, res) => {
     const newResult = await storage.createTestResult(testResultData);
     console.log('Test result created successfully:', newResult);
     res.status(201).json(newResult);
-    const newResult = await storage.createTestResult(testResultData);
-    console.log('Test result created successfully:', newResult);
-    res.status(201).json(newResult);
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
     console.error('Error creating test result:', error);

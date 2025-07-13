@@ -38,7 +38,7 @@ export interface AIAnalysisResult {
 
 const PYTHON_PATH = 'python';
 const PYTHON_ARGS: string[] = [];
-const SCRIPT_PATH = join(process.cwd(), 'server', 'ai-scripts', 'video_analysis.py');
+const SCRIPT_PATH = join(process.cwd(), 'server', 'ai-scripts', 'video_analysis_opencv.py');
 let pythonAvailable = false;
 
 try {
@@ -58,7 +58,7 @@ export async function analyzeVideoWithAI(
 ): Promise<AIAnalysisResult> {
   try {
     if (pythonAvailable) {
-      const tempVideoPath = join(tmpdir(), `video_analysis_${Date.now()}.webm`);
+      const tempVideoPath = join(tmpdir(), `video_analysis_${Date.now()}.mp4`);
       writeFileSync(tempVideoPath, videoBuffer);
 
       try {

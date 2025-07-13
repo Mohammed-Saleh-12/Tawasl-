@@ -91,16 +91,16 @@ class RealVideoAnalyzer:
                 resolution = width * height
                 
                 # Adaptive sampling based on resolution
-                if resolution < 640 * 480:  # Low resolution (VGA or lower)
-                    sample_frames = min(30, max(5, total_frames // 5))  # More samples for low-res
+                if resolution < 480 * 360:  # Low resolution (VGA or lower)
+                    sample_frames = min(20, max(3, total_frames // 3))  # More samples for low-res
                     self.low_resolution_mode = True
                     print(f"[AI Analysis] Low resolution detected: {width}x{height}, using adaptive sampling", file=sys.stderr)
                 elif resolution < 1280 * 720:  # Medium resolution
                     sample_frames = min(40, max(8, total_frames // 8))
-                    self.low_resolution_mode = False
+                    self.low_resolution_mode = True
                 else:  # High resolution
                     sample_frames = min(50, max(10, total_frames // 10))
-                    self.low_resolution_mode = False
+                    self.low_resolution_mode = True
                 
                 print(f"[AI Analysis] Video: {width}x{height}, {total_frames} frames, sampling {sample_frames} frames", file=sys.stderr)
                 

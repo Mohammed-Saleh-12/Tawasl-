@@ -242,7 +242,7 @@ export default function VideoPractice() {
     try {
       // Create a unique filename
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `${selectedScenario.replace(/\s+/g, '_')}_${timestamp}.webm`;
+      const filename = `${selectedScenario.replace(/\s+/g, '_')}_${timestamp}.mp4`;
       
       // Use the improved download function
       await downloadVideo(recordedVideoUrl, filename);

@@ -37,7 +37,7 @@ export interface AIAnalysisResult {
 }
 
 const PYTHON_PATH = 'python3';
-const PYTHON_ARGS = ['-3'];
+const PYTHON_ARGS = [];
 const SCRIPT_PATH = join(process.cwd(), 'server', 'ai-scripts', 'video_analysis.py');
 let pythonAvailable = false;
 

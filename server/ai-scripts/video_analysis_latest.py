@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 """
-Video Analysis Script (Latest Python Compatible)
-- Uses OpenCV for video handling
-- Uses YOLOv8 (ultralytics) for person detection
-- Uses MediaPipe for face, hand, and pose analysis
+Video Analysis Script (YOLOv8 Only, No OpenCV)
+- Uses YOLOv8 (ultralytics) for person detection and analysis
+- Uses imageio for video frame extraction (no cv2)
 - Compatible with Python 3.13+
 """
 
-import cv2
 import numpy as np
 import json
 import sys
@@ -15,85 +13,66 @@ import base64
 import tempfile
 import os
 from ultralytics import YOLO
-import mediapipe as mp
+import imageio
 from typing import Dict, Any
 
 def analyze_video(video_path: str, scenario: str, duration: float) -> Dict[str, Any]:
-    # Initialize models
+    # Initialize YOLOv8 model
     yolo_model = YOLO('yolov8n.pt')
-    mp_face = mp.solutions.face_mesh
-    mp_hands = mp.solutions.hands
-    mp_pose = mp.solutions.pose
-    face_mesh = mp_face.FaceMesh(static_image_mode=False, max_num_faces=2)
-    hands = mp_hands.Hands(static_image_mode=False, max_num_hands=2)
-    pose = mp_pose.Pose(static_image_mode=False)
 
-    # Open video
-    cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        return {"status": "error", "message": "Could not open video file."}
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    # Read video frames using imageio
+    try:
+        reader = imageio.get_reader(video_path)
+    except Exception as e:
+        return {"status": "error", "message": f"Could not open video file: {str(e)}"}
+    total_frames = reader.count_frames()
     sample_frames = min(50, max(10, total_frames // 10))
-    results_data = []
-    person_detected = False
+    person_detected_frames = 0
+    multi_person_frames = 0
+    no_person_frames = 0
     for i in range(sample_frames):
         frame_idx = int(i * total_frames / sample_frames)
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
-        ret, frame = cap.read()
-        if not ret:
+        try:
+            frame = reader.get_data(frame_idx)
+        except Exception:
             continue
         # YOLOv8 person detection
         yolo_results = yolo_model(frame, verbose=False)
         person_count = sum(1 for box in yolo_results[0].boxes if int(box.cls[0]) == 0)
         if person_count == 1:
-            person_detected = True
-            # MediaPipe analysis
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            face_results = face_mesh.process(rgb_frame)
-            hand_results = hands.process(rgb_frame)
-            pose_results = pose.process(rgb_frame)
-            num_faces = len(face_results.multi_face_landmarks) if face_results.multi_face_landmarks else 0
-            num_hands = len(hand_results.multi_hand_landmarks) if hand_results.multi_hand_landmarks else 0
-            pose_detected = pose_results.pose_landmarks is not None
-            results_data.append({
-                'face_detected': num_faces > 0,
-                'hands_detected': num_hands > 0,
-                'pose_detected': pose_detected
-            })
+            person_detected_frames += 1
+        elif person_count > 1:
+            multi_person_frames += 1
         else:
-            results_data.append({'face_detected': False, 'hands_detected': False, 'pose_detected': False})
-    cap.release()
-    if not person_detected:
+            no_person_frames += 1
+    reader.close()
+    if person_detected_frames == 0:
         return {"status": "error", "message": "No person detected in the video."}
     # Aggregate results
-    face_score = int(100 * sum(1 for r in results_data if r['face_detected']) / len(results_data))
-    hand_score = int(100 * sum(1 for r in results_data if r['hands_detected']) / len(results_data))
-    pose_score = int(100 * sum(1 for r in results_data if r['pose_detected']) / len(results_data))
-    overall_score = int(np.mean([face_score, hand_score, pose_score]))
+    person_score = int(100 * person_detected_frames / sample_frames)
+    multi_person_score = int(100 * multi_person_frames / sample_frames)
+    no_person_score = int(100 * no_person_frames / sample_frames)
+    overall_score = person_score - multi_person_score
     feedback = []
-    if face_score > 80:
-        feedback.append("Excellent face visibility and eye contact.")
-    elif face_score > 50:
-        feedback.append("Face detected in most frames. Try to keep your face visible.")
+    if person_score > 80:
+        feedback.append("Excellent person visibility throughout the video.")
+    elif person_score > 50:
+        feedback.append("A person was detected in most frames. Try to stay in view of the camera.")
     else:
-        feedback.append("Face rarely detected. Please face the camera.")
-    if hand_score > 50:
-        feedback.append("Good use of hand gestures.")
-    else:
-        feedback.append("Try to use your hands more for expressive communication.")
-    if pose_score > 70:
-        feedback.append("Confident posture detected.")
-    else:
-        feedback.append("Work on maintaining a confident posture.")
+        feedback.append("A person was rarely detected. Please ensure you are visible to the camera.")
+    if multi_person_score > 20:
+        feedback.append("Multiple people detected in several frames. For best results, only one person should be visible.")
+    if no_person_score > 20:
+        feedback.append("No person detected in many frames. Try to stay in view of the camera.")
     return {
         "status": "success",
         "message": "Analysis completed successfully.",
-        "overallScore": overall_score,
-        "faceScore": face_score,
-        "handScore": hand_score,
-        "poseScore": pose_score,
+        "overallScore": max(0, overall_score),
+        "personScore": person_score,
+        "multiPersonScore": multi_person_score,
+        "noPersonScore": no_person_score,
         "feedback": feedback,
-        "framesAnalyzed": len(results_data)
+        "framesAnalyzed": sample_frames
     }
 
 def main():

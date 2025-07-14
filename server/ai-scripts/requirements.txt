@@ -3,3 +3,4 @@ mediapipe
 numpy
 ultralytics 
 yolov8
+imageio

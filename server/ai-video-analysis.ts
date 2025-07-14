@@ -39,7 +39,7 @@ export interface AIAnalysisResult {
 const PYTHON_PATH = 'python';
 const PYTHON_ARGS = ['-3.13'];
 const SCRIPT_PATH = join(process.cwd(), 'server', 'ai-scripts', 'video_analysis.py');
-let pythonAvailable = false;
+let pythonAvailable = true;
 
 try {
   // Synchronous check for Python availability

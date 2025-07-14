@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: educational-network
+    name: Tawasl-
     env: node
     buildCommand: |
       npm install

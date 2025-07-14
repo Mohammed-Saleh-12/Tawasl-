@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """
-Video Analysis Script (YOLOv8 Only, No OpenCV)
+Video Analysis Script (YOLOv8 Only, No OpenCV, No NumPy)
 - Uses YOLOv8 (ultralytics) for person detection and analysis
-- Uses imageio for video frame extraction (no cv2)
+- Uses imageio for video frame extraction (no cv2, no numpy)
 - Compatible with Python 3.13+
 """
 
-import numpy as np
 import json
 import sys
 import base64
@@ -15,6 +14,9 @@ import os
 from ultralytics import YOLO
 import imageio
 from typing import Dict, Any
+
+def mean(values):
+    return sum(values) / len(values) if values else 0
 
 def analyze_video(video_path: str, scenario: str, duration: float) -> Dict[str, Any]:
     # Initialize YOLOv8 model
